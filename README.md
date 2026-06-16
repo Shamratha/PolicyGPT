@@ -4,13 +4,85 @@ PolicyGPT is an AI-powered public policy navigation SaaS platform designed to si
 
 ---
 
-## Architecture & Tech Stack
+## System Architecture & Tech Stack
 
-The platform is built as a decoupled monorepo:
-- **Backend**: FastAPI, SQLAlchemy (PostgreSQL), ChromaDB (Vector Search), OpenAI API (GPT-4o & Text Embeddings), ReportLab (PDF compiling).
-- **Frontend**: Next.js 15, TypeScript, Tailwind CSS, shadcn/ui styles, Framer Motion, Recharts.
-- **Authentication**: Clerk Authentication.
-- **Orchestration**: Docker Compose.
+PolicyGPT is designed as a decoupled, micro-service-ready monorepo structured for high scalability, real-time response, and robust security.
+
+```mermaid
+graph TD
+    subgraph Frontend ["Frontend (Next.js 15 App Router)"]
+        UI["Tailwind CSS & shadcn/ui Dashboard"]
+        ClerkSDK["Clerk Client SDK"]
+        Recharts["Recharts Visualizations"]
+    end
+
+    subgraph AuthProvider ["Identity & Auth Platform"]
+        Clerk["Clerk SaaS (JWKS / Session Tokens)"]
+    end
+
+    subgraph Backend ["Backend API (FastAPI & Python)"]
+        AuthMiddleware["Clerk JWT Auth Middleware"]
+        API["FastAPI Routers"]
+        
+        subgraph Services ["Domain Services Layer"]
+            Scraper["Scraper Service (HTMLTextExtractor)"]
+            Eligibility["Dual-Phase Eligibility Engine"]
+            AIService["Conversational RAG (OpenAI / Gemini)"]
+            TransService["Translation Service (Kannada/Hindi/English)"]
+            PDFGen["ReportLab PDF Compiler"]
+        end
+        
+        subgraph DataStore ["Data & Vector Storage"]
+            PostgreSQL[("PostgreSQL / SQLite (SQLAlchemy ORM)")]
+            ChromaDB[("ChromaDB Vector Store (Semantic Embeddings)")]
+        end
+    end
+
+    subgraph External ["External Services"]
+        LLM["AI Models (GPT-4o / Gemini 1.5)"]
+    end
+
+    %% Interactions
+    UI --> ClerkSDK
+    ClerkSDK -- Authenticate & Retrieve Token --> Clerk
+    UI -- HTTPS Requests + JWT Bearer Token --> AuthMiddleware
+    AuthMiddleware -- Verify JWT via JWKS Endpoint --> Clerk
+    AuthMiddleware --> API
+    
+    API --> Services
+    Services --> PostgreSQL
+    Services --> ChromaDB
+    
+    AIService -- Query & Context Embeddings --> LLM
+    Eligibility -- Contextual Analysis Verification --> LLM
+```
+
+### Architectural Component Breakdown
+
+#### 1. Presentation Layer (Frontend)
+- **Framework**: Next.js 15 (React 19) utilizing App Router architecture with Turbopack for optimal compilation.
+- **Styling & Components**: Tailwind CSS combined with `shadcn/ui` (Radix UI primitives) and Framer Motion for smooth, high-fidelity micro-interactions and transitions.
+- **Analytics Visualization**: Recharts for rendering SVG-based charts (bar, line, pie) displaying scheme application volume and regional tracking metrics.
+
+#### 2. Authentication & Identity Management
+- **Provider**: Clerk Authentication.
+- **Implementation**: Fully integrated client-side header components and a secure backend validation middleware utilizing Clerk's JSON Web Key Sets (JWKS) URL.
+- **Session Protection**: Next.js middleware routing rules (`src/proxy.ts`) protect dashboard, profile, and application tracking pages.
+
+#### 3. Core Backend Services (FastAPI)
+- **Application Framework**: FastAPI (Python 3.11+), enabling high-performance asynchronous request handling.
+- **Dual-Phase Eligibility Engine**:
+  - *Phase 1 (Deterministic)*: Compares strict demographic profile parameters (state, age, income limits, gender) against structured SQL constraints.
+  - *Phase 2 (Contextual RAG)*: Leverages LLMs to evaluate subjective policy clauses (e.g., educational field focus, specific business goals) for highly accurate matching.
+- **Semantic Scraper Pipeline**: Custom `HTMLTextExtractor` robust to layout templates and void HTML tag stack poisoning, parsing startup portals and federal schemes into chunked text.
+- **Multilingual Translation Middleware**: Seamless translation layer enabling users to query in Hindi, Kannada, or English.
+- **PDF Compiler**: Asynchronous generator powered by ReportLab that formats applicant survey logs into high-resolution documents.
+
+#### 4. Persistence & Data Storage
+- **SQL Database**: PostgreSQL (Production) / SQLite (Development) accessed through SQLAlchemy ORM with a Repository design pattern. Tracks user state, demographic profiles, application progress, and dashboard checklist statuses.
+- **Vector Search Engine**: ChromaDB, storing chunked government policy documents converted to vector embeddings (1536-dim or 768-dim) for semantic similarity searches.
+
+---
 
 ---
 
