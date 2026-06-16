@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+:root {
+  --background: #090d16;
+  --foreground: #f8fafc;
+  --primary: #4f46e5;
+  --primary-glow: rgba(79, 70, 229, 0.15);
+  --secondary: #0ea5e9;
+  --accent: #8b5cf6;
+  --card-bg: rgba(17, 24, 39, 0.6);
+  --card-border: rgba(255, 255, 255, 0.08);
+  
+  --eligible: #10b981;
+  --potentially-eligible: #f59e0b;
+  --not-eligible: #ef4444;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --color-card: var(--card-bg);
+  --color-border: var(--card-border);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Glassmorphism custom classes */
+.glass-panel {
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.glass-panel-hover:hover {
+  background: rgba(15, 23, 42, 0.8);
+  border-color: rgba(79, 70, 229, 0.4);
+  box-shadow: 0 10px 30px -10px rgba(79, 70, 229, 0.25);
+  transform: translateY(-2px);
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.3);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(79, 70, 229, 0.5);
+}
+
+/* Status indicator pulses */
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.05); }
+}
+
+.pulse-eligible {
+  box-shadow: 0 0 12px var(--eligible);
+  animation: status-pulse 2s infinite ease-in-out;
+}
+
+.pulse-potential {
+  box-shadow: 0 0 12px var(--potentially-eligible);
+  animation: status-pulse 2s infinite ease-in-out;
+}
+
+.pulse-not {
+  box-shadow: 0 0 12px var(--not-eligible);
+  animation: status-pulse 2s infinite ease-in-out;
+}
+
+/* Animated gradient backgrounds */
+@keyframes gradient-bg {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.glowing-bg {
+  background: linear-gradient(-45deg, #090d16, #0f172a, #1e1b4b, #020617);
+  background-size: 400% 400%;
+  animation: gradient-bg 15s ease infinite;
+}

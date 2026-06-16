@@ -1,0 +1,159 @@
+
+> frontend@0.1.0 lint
+> eslint
+
+
+/Users/avaishnavi/Documents/policyGPT/frontend/src/app/admin/page.tsx
+   8:72  warning  'BarChart2' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+  51:7   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/avaishnavi/Documents/policyGPT/frontend/src/app/admin/page.tsx:51:7
+  49 |     }
+  50 |     if (userId) {
+> 51 |       fetchAdminStats();
+     |       ^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  52 |     }
+  53 |   }, [isLoaded, userId]);
+  54 |  react-hooks/set-state-in-effect
+  53:6   warning  React Hook useEffect has missing dependencies: 'fetchAdminStats' and 'router'. Either include them or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         react-hooks/exhaustive-deps
+
+/Users/avaishnavi/Documents/policyGPT/frontend/src/app/chat/page.tsx
+    7:68  warning  'ClipboardList' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+    7:83  warning  'ShieldAlert' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+    7:96  warning  'Award' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    @typescript-eslint/no-unused-vars
+   60:7   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/avaishnavi/Documents/policyGPT/frontend/src/app/chat/page.tsx:60:7
+  58 |     }
+  59 |     if (userId) {
+> 60 |       fetchDashboardDetails();
+     |       ^^^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  61 |     }
+  62 |   }, [isLoaded, userId]);
+  63 |  react-hooks/set-state-in-effect
+   62:6   warning  React Hook useEffect has missing dependencies: 'fetchDashboardDetails' and 'router'. Either include them or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              react-hooks/exhaustive-deps
+  295:47  warning  'startRes' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+
+/Users/avaishnavi/Documents/policyGPT/frontend/src/app/dashboard/page.tsx
+   7:20  warning  'Compass' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+   7:29  warning  'FileText' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+   7:85  warning  'Plus' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+   7:91  warning  'RefreshCw' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+  44:7   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/avaishnavi/Documents/policyGPT/frontend/src/app/dashboard/page.tsx:44:7
+  42 |     }
+  43 |     if (userId) {
+> 44 |       fetchDashboard();
+     |       ^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  45 |     }
+  46 |   }, [isLoaded, userId]);
+  47 |  react-hooks/set-state-in-effect
+  46:6   warning  React Hook useEffect has missing dependencies: 'fetchDashboard' and 'router'. Either include them or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            react-hooks/exhaustive-deps
+
+/Users/avaishnavi/Documents/policyGPT/frontend/src/app/explorer/page.tsx
+    7:27  warning  'ShieldAlert' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+    7:40  warning  'Award' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    @typescript-eslint/no-unused-vars
+   24:11  warning  'isLoaded' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+   95:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/avaishnavi/Documents/policyGPT/frontend/src/app/explorer/page.tsx:95:5
+  93 |
+  94 |   useEffect(() => {
+> 95 |     fetchSchemes();
+     |     ^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  96 |     if (userId) {
+  97 |       fetchSavedList();
+  98 |     }                                                                                        react-hooks/set-state-in-effect
+   99:6   warning  React Hook useEffect has missing dependencies: 'fetchSavedList' and 'fetchSchemes'. Either include them or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               react-hooks/exhaustive-deps
+  107:9   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/avaishnavi/Documents/policyGPT/frontend/src/app/explorer/page.tsx:107:9
+  105 |       const match = schemes.find((s) => s.id === focusId);
+  106 |       if (match) {
+> 107 |         handleOpenDetails(match);
+      |         ^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  108 |       }
+  109 |     }
+  110 |   }, [searchParams, schemes]);  react-hooks/set-state-in-effect
+
+/Users/avaishnavi/Documents/policyGPT/frontend/src/app/layout.tsx
+  23:11  warning  Custom fonts not added in `pages/_document.js` will only load for a single page. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font  @next/next/no-page-custom-font
+
+/Users/avaishnavi/Documents/policyGPT/frontend/src/app/page.tsx
+  2:10  warning  'Compass' is defined but never used   @typescript-eslint/no-unused-vars
+  2:58  warning  'Users' is defined but never used     @typescript-eslint/no-unused-vars
+  2:65  warning  'Award' is defined but never used     @typescript-eslint/no-unused-vars
+  2:72  warning  'Landmark' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/avaishnavi/Documents/policyGPT/frontend/src/app/profile/page.tsx
+  88:7  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/avaishnavi/Documents/policyGPT/frontend/src/app/profile/page.tsx:88:7
+  86 |
+  87 |     if (userId) {
+> 88 |       fetchProfile();
+     |       ^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  89 |     }
+  90 |   }, [isLoaded, userId]);
+  91 |  react-hooks/set-state-in-effect
+  90:6  warning  React Hook useEffect has missing dependencies: 'fetchProfile' and 'router'. Either include them or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  react-hooks/exhaustive-deps
+
+/Users/avaishnavi/Documents/policyGPT/frontend/src/app/surveys/page.tsx
+   7:10  warning  'ClipboardList' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             @typescript-eslint/no-unused-vars
+  74:7   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/avaishnavi/Documents/policyGPT/frontend/src/app/surveys/page.tsx:74:7
+  72 |     }
+  73 |     if (userId) {
+> 74 |       fetchSchemes();
+     |       ^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  75 |     }
+  76 |   }, [isLoaded, userId]);
+  77 |  react-hooks/set-state-in-effect
+  76:6   warning  React Hook useEffect has a missing dependency: 'router'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             react-hooks/exhaustive-deps
+
+✖ 31 problems (7 errors, 24 warnings)
+
