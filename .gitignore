@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+.venv/
+.vendor/
+.pytest_cache/
+policygpt.db
+reports/
+.env

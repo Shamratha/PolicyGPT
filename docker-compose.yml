@@ -1,0 +1,13 @@
+services:
+  policygpt:
+    build: .
+    ports: ["8000:8000"]
+    volumes:
+      - policygpt-data:/app/reports
+      - policygpt-db:/app/db
+    environment:
+      POLICYGPT_DB: /app/db/policygpt.db
+      POLICYGPT_REPORT_DIR: /app/reports
+volumes:
+  policygpt-data:
+  policygpt-db:
