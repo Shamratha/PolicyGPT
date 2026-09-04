@@ -31,3 +31,12 @@ pytest -q
 ```
 
 The staged agents are in `app/agents.py`; deterministic hybrid retrieval is in `app/retrieval.py`. See `docs/` for the Review 1 slide content, weekly progress entries, and rubric mapping.
+
+## Review 1 deliverables
+
+The generated presentation and filled weekly-progress workbook are in `deliverables/`:
+
+- `PolicyGPT_Project_Work_2_Review_1.pptx`
+- `PolicyGPT_Weekly_Progress_Report_Review_1.xlsx`
+
+Regenerate them with `python scripts/generate_deliverables.py`. Student and guide signature cells intentionally remain placeholders for handwritten signing.

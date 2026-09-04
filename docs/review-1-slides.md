@@ -1,5 +1,7 @@
 # Project Work 2 – Review 1 presentation content
 
+The ready-to-present deck is generated at `deliverables/PolicyGPT_Project_Work_2_Review_1.pptx` by `python scripts/generate_deliverables.py`. The outline below documents the content and is retained for review/editing.
+
 Copy these entries into the supplied PPT template.
 
 1. **Title:** PolicyGPT: An AI-Driven Policy Intelligence and Assistance Platform for Government Schemes. Guide: Sanket S. Kulkarni, Assistant Professor, Department of Machine Learning. Presented by Sahana B.K. (1BM23AI162), Shamratha G. (1BM23AI173), and Suniksha Priya (1BM23AI192). Semester VII, Section C. Date: [presentation date].
