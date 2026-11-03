@@ -65,3 +65,9 @@ yarn-error.log*
 # Vercel
 .vercel
 frontend/.vercel
+
+# local check results
+_checks/*.txt
+
+# old standalone prototype (kept on the old-version branch on GitHub)
+PolicyGPT/

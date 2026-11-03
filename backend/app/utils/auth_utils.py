@@ -33,18 +33,20 @@ def get_jwks() -> Optional[Dict[str, Any]]:
 def verify_clerk_token(token: str) -> Dict[str, Any]:
     """
     Decodes and validates a Clerk JWT.
-    Provides a development bypass if CLERK_JWKS_URL is empty or key is mock.
+    In ENVIRONMENT=development the signature is not verified (local demos without Clerk keys).
     """
     try:
         # Development mode check
-        if not settings.CLERK_JWKS_URL or settings.ENVIRONMENT == "development" or settings.OPENAI_API_KEY.startswith("sk-mock"):
+        # Only local development may skip signature checks. In production a missing
+        # CLERK_JWKS_URL fails closed (get_jwks() returns None -> error) instead of trusting tokens.
+        if settings.ENVIRONMENT == "development":
             # Decode token without verification for ease of development & offline mode
             payload = jwt.decode(token, options={"verify_signature": False})
             return payload
 
         jwks = get_jwks()
         if not jwks:
-            raise HTTPException(status_code=500, detail="Clerk public key set is unavailable.")
+            raise HTTPException(status_code=503, detail="Sign-in verification is not configured on the server (CLERK_JWKS_URL).")
 
         # Extract kid from jwt header
         unverified_header = jwt.get_unverified_header(token)
@@ -71,6 +73,8 @@ def verify_clerk_token(token: str) -> Dict[str, Any]:
             options={"verify_aud": False} # Skip audience check if client-specific setup varies
         )
         return payload
+    except HTTPException:
+        raise
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Authentication token has expired.")
     except jwt.InvalidTokenError as e:
@@ -85,7 +89,7 @@ def get_current_user_claims(credentials: Optional[HTTPAuthorizationCredentials] 
     """
     if not credentials:
         # For development ease, if no token is passed, return a mock user payload
-        if settings.ENVIRONMENT == "development" or settings.OPENAI_API_KEY.startswith("sk-mock"):
+        if settings.ENVIRONMENT == "development":
             return {
                 "sub": "mock_clerk_id_12345",
                 "email": "dev-user@policygpt.ai"
@@ -94,3 +98,18 @@ def get_current_user_claims(credentials: Optional[HTTPAuthorizationCredentials] 
         
     token = credentials.credentials
     return verify_clerk_token(token)
+
+
+def require_admin(claims: Dict[str, Any] = Depends(get_current_user_claims)) -> Dict[str, Any]:
+    """
+    Allows only administrators to manage schemes. Admins are listed in ADMIN_EMAILS
+    (emails or Clerk user ids). With an empty list (local development) every signed-in
+    user is treated as an admin so the project can be demoed without extra setup.
+    """
+    admins = settings.admin_list
+    if not admins:
+        return claims
+    identities = {str(claims.get(k, "")).lower() for k in ("sub", "email", "email_address", "primary_email_address")}
+    if admins & identities:
+        return claims
+    raise HTTPException(status_code=403, detail="Only administrators can manage schemes.")

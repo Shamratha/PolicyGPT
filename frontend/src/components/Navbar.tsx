@@ -3,71 +3,93 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { SignedIn, SignedOut, UserButton, SignInButton, SignUpButton } from '@clerk/nextjs';
-import { Sparkles, BarChart2, Compass, MessageSquare, User, ClipboardList } from 'lucide-react';
+import { BarChart2, Compass, MessageSquare, User, ClipboardList, Landmark, UserCheck } from 'lucide-react';
+
+const links = [
+  { href: '/chat', label: 'Ask PolicyGPT', icon: MessageSquare },
+  { href: '/explorer', label: 'Schemes', icon: Compass },
+  { href: '/dashboard', label: 'My dashboard', icon: User },
+  { href: '/surveys', label: 'Survey', icon: ClipboardList },
+  { href: '/admin', label: 'Insights', icon: BarChart2 },
+];
 
 export default function Navbar() {
   const pathname = usePathname();
-
-  const links = [
-    { href: '/chat', label: 'AI Assistant', icon: MessageSquare },
-    { href: '/explorer', label: 'Scheme Explorer', icon: Compass },
-    { href: '/surveys', label: 'Research Survey', icon: ClipboardList },
-    { href: '/dashboard', label: 'Dashboard', icon: User },
-    { href: '/admin', label: 'Impact Analytics', icon: BarChart2 },
-  ];
+  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-slate-950/80 backdrop-blur-md">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6">
-        {/* Logo */}
-        <Link href="/" className="flex items-center space-x-2 text-xl font-bold tracking-tight text-white hover:opacity-90">
-          <span className="bg-gradient-to-r from-indigo-400 via-sky-400 to-purple-500 bg-clip-text text-transparent">
-            PolicyGPT
+    <header className="sticky top-0 z-50 w-full border-b border-line bg-paper/90 backdrop-blur">
+      {/* tricolour hairline */}
+      <div className="flex h-1 w-full" aria-hidden="true">
+        <span className="flex-1 bg-marigold" />
+        <span className="flex-1 bg-paper" />
+        <span className="flex-1 bg-leaf" />
+      </div>
+      <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
+        <Link href="/" className="flex shrink-0 items-center gap-2.5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-chakra text-white">
+            <Landmark className="h-5 w-5" />
           </span>
-          <Sparkles className="h-4 w-4 text-sky-400 animate-pulse" />
+          <span className="font-display text-xl font-extrabold tracking-tight text-ink">PolicyGPT</span>
         </Link>
 
-        {/* Navigation links */}
-        <nav className="hidden md:flex items-center space-x-1 text-sm font-medium">
-          {links.map((link) => {
-            const Icon = link.icon;
-            const isActive = pathname === link.href;
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`flex items-center space-x-1 px-3 py-2 rounded-lg transition-colors ${
-                  isActive
-                    ? 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/20'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                }`}
-              >
-                <Icon className="h-4 w-4" />
-                <span>{link.label}</span>
-              </Link>
-            );
-          })}
+        <nav className="hidden items-center gap-1 md:flex" aria-label="Main">
+          {links.map(({ href, label, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              aria-current={isActive(href) ? 'page' : undefined}
+              className={`relative flex items-center gap-1.5 rounded-lg px-3 py-2 text-[15px] font-bold transition-colors ${
+                isActive(href) ? 'text-chakra' : 'text-ink-soft hover:bg-mist hover:text-ink'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {label}
+              {isActive(href) && <span className="absolute inset-x-3 -bottom-[13px] h-[3px] rounded-full bg-chakra" />}
+            </Link>
+          ))}
         </nav>
 
-        {/* Auth Buttons */}
-        <div className="flex items-center space-x-2">
+        <div className="flex shrink-0 items-center gap-2">
           <SignedIn>
-            <UserButton afterSignOutUrl="/" />
+            <Link
+              href="/profile"
+              className={`hidden items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-bold sm:flex ${
+                isActive('/profile') ? 'bg-chakra-tint text-chakra' : 'text-ink-soft hover:bg-mist hover:text-ink'
+              }`}
+            >
+              <UserCheck className="h-4 w-4" />
+              My profile
+            </Link>
+            <UserButton />
           </SignedIn>
           <SignedOut>
             <SignInButton mode="modal">
-              <button className="cursor-pointer text-xs font-semibold text-slate-300 hover:text-white px-3 py-2 rounded-lg hover:bg-white/5 transition-colors">
-                Sign In
+              <button className="cursor-pointer rounded-lg px-3 py-2 text-sm font-bold text-ink-soft hover:bg-mist hover:text-ink">
+                Sign in
               </button>
             </SignInButton>
             <SignUpButton mode="modal">
-              <button className="cursor-pointer text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-lg shadow-md transition-colors">
-                Sign Up
-              </button>
+              <button className="btn-primary cursor-pointer !px-4 !py-2 !text-sm">Create account</button>
             </SignUpButton>
           </SignedOut>
         </div>
       </div>
+
+      <nav className="no-scrollbar flex gap-1 overflow-x-auto border-t border-line px-3 py-2 md:hidden" aria-label="Main">
+        {links.map(({ href, label, icon: Icon }) => (
+          <Link
+            key={href}
+            href={href}
+            className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold ${
+              isActive(href) ? 'bg-chakra-tint text-chakra' : 'text-ink-soft'
+            }`}
+          >
+            <Icon className="h-4 w-4" />
+            {label}
+          </Link>
+        ))}
+      </nav>
     </header>
   );
 }

@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
-import { getApi } from '@/services/api';
-import { ClipboardList, Send, Loader, Sparkles, Star } from 'lucide-react';
+import { getApi, getErrorMessage } from '@/services/api';
+import { Send, Loader, Sparkles, Star } from 'lucide-react';
 
 interface Scheme {
   id: string;
@@ -70,9 +70,10 @@ export default function SurveyPage() {
       router.push('/');
       return;
     }
-    if (userId) {
-      fetchSchemes();
-    }
+    if (!userId) return;
+    const t = setTimeout(fetchSchemes, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, userId]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -120,7 +121,7 @@ export default function SurveyPage() {
       }, 1500);
     } catch (err) {
       console.error('Error submitting survey:', err);
-      setError('Failed to submit survey. Please review your answers.');
+      setError(`Failed to submit survey: ${getErrorMessage(err)}`);
     } finally {
       setSubmitting(false);
     }
@@ -129,8 +130,8 @@ export default function SurveyPage() {
   if (loading) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh]">
-        <Loader className="h-10 w-10 text-indigo-400 animate-spin" />
-        <p className="mt-4 text-xs text-slate-400">Loading scheme registry lists...</p>
+        <Loader className="h-10 w-10 text-chakra animate-spin" />
+        <p className="mt-4 text-xs text-ink-mute">Loading scheme registry lists...</p>
       </div>
     );
   }
@@ -138,35 +139,35 @@ export default function SurveyPage() {
   return (
     <div className="max-w-xl mx-auto py-6 space-y-6">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-indigo-400 to-sky-400 bg-clip-text text-transparent">
+        <h1 className="font-display text-4xl font-extrabold text-ink">
           Policy Accessibility Survey
         </h1>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-ink-mute">
           Share your experience accessing government schemes. Your input helps us trace access roadblocks.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="glass-panel p-8 rounded-2xl space-y-6">
         {success && (
-          <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs rounded-xl flex items-center space-x-2">
+          <div className="p-3 bg-leaf/10 border border-leaf/20 text-leaf text-xs rounded-xl flex items-center space-x-2">
             <Sparkles className="h-4 w-4 animate-bounce" />
             <span>Feedback submitted successfully! Redirecting...</span>
           </div>
         )}
         {error && (
-          <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-xl">
+          <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-seal text-xs rounded-xl">
             {error}
           </div>
         )}
 
         {/* Scheme Selection */}
         <div className="flex flex-col space-y-2">
-          <label className="text-xs font-semibold text-slate-300">Select Government Scheme</label>
+          <label className="text-xs font-semibold text-ink-soft">Select Government Scheme</label>
           <select
             name="scheme_id"
             value={formData.scheme_id}
             onChange={handleInputChange}
-            className="bg-slate-900/50 border border-white/10 rounded-xl px-4 py-2.5 text-xs sm:text-sm focus:outline-none focus:border-indigo-500 cursor-pointer text-slate-200"
+            className="bg-paper border border-line rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-chakra cursor-pointer text-ink"
           >
             {schemes.map((s) => (
               <option key={s.id} value={s.id}>{s.title}</option>
@@ -176,15 +177,15 @@ export default function SurveyPage() {
 
         {/* Aware of Scheme */}
         <div className="flex flex-col space-y-2">
-          <label className="text-xs font-semibold text-slate-300">Were you aware of this scheme before visiting PolicyGPT?</label>
+          <label className="text-xs font-semibold text-ink-soft">Were you aware of this scheme before visiting PolicyGPT?</label>
           <div className="flex space-x-4 pt-1">
             <button
               type="button"
               onClick={() => handleRadioChange('aware_of_scheme', true)}
               className={`flex-1 py-2 rounded-xl border text-xs font-semibold transition-all ${
                 formData.aware_of_scheme
-                  ? 'bg-indigo-600 border-indigo-500 text-white shadow'
-                  : 'border-white/10 text-slate-400 hover:text-white hover:bg-white/5'
+                  ? 'bg-chakra border-chakra text-white shadow'
+                  : 'border-line text-ink-mute hover:text-ink hover:bg-mist'
               }`}
             >
               Yes, I was aware
@@ -194,8 +195,8 @@ export default function SurveyPage() {
               onClick={() => handleRadioChange('aware_of_scheme', false)}
               className={`flex-1 py-2 rounded-xl border text-xs font-semibold transition-all ${
                 !formData.aware_of_scheme
-                  ? 'bg-indigo-600 border-indigo-500 text-white shadow'
-                  : 'border-white/10 text-slate-400 hover:text-white hover:bg-white/5'
+                  ? 'bg-chakra border-chakra text-white shadow'
+                  : 'border-line text-ink-mute hover:text-ink hover:bg-mist'
               }`}
             >
               No, discovered here
@@ -206,16 +207,16 @@ export default function SurveyPage() {
         {formData.aware_of_scheme && (
           <>
             {/* Applied for Scheme */}
-            <div className="flex flex-col space-y-2 border-t border-white/5 pt-4">
-              <label className="text-xs font-semibold text-slate-300">Have you ever attempted to apply for this scheme?</label>
+            <div className="flex flex-col space-y-2 border-t border-line pt-4">
+              <label className="text-xs font-semibold text-ink-soft">Have you ever attempted to apply for this scheme?</label>
               <div className="flex space-x-4 pt-1">
                 <button
                   type="button"
                   onClick={() => handleRadioChange('applied_for_scheme', true)}
                   className={`flex-1 py-2 rounded-xl border text-xs font-semibold transition-all ${
                     formData.applied_for_scheme
-                      ? 'bg-indigo-600 border-indigo-500 text-white shadow'
-                      : 'border-white/10 text-slate-400 hover:text-white hover:bg-white/5'
+                      ? 'bg-chakra border-chakra text-white shadow'
+                      : 'border-line text-ink-mute hover:text-ink hover:bg-mist'
                   }`}
                 >
                   Yes, I have applied
@@ -225,8 +226,8 @@ export default function SurveyPage() {
                   onClick={() => handleRadioChange('applied_for_scheme', false)}
                   className={`flex-1 py-2 rounded-xl border text-xs font-semibold transition-all ${
                     !formData.applied_for_scheme
-                      ? 'bg-indigo-600 border-indigo-500 text-white shadow'
-                      : 'border-white/10 text-slate-400 hover:text-white hover:bg-white/5'
+                      ? 'bg-chakra border-chakra text-white shadow'
+                      : 'border-line text-ink-mute hover:text-ink hover:bg-mist'
                   }`}
                 >
                   No, I did not apply
@@ -235,10 +236,10 @@ export default function SurveyPage() {
             </div>
 
             {formData.applied_for_scheme && (
-              <div className="space-y-4 border-t border-white/5 pt-4 animate-in fade-in slide-in-from-top-1 duration-200">
+              <div className="space-y-4 border-t border-line pt-4 animate-in fade-in slide-in-from-top-1 duration-200">
                 {/* Difficulty Rating */}
                 <div className="flex flex-col space-y-2">
-                  <label className="text-xs font-semibold text-slate-300">Application Difficulty Level</label>
+                  <label className="text-xs font-semibold text-ink-soft">Application Difficulty Level</label>
                   <div className="flex space-x-2 pt-1">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <button
@@ -250,24 +251,24 @@ export default function SurveyPage() {
                         <Star
                           className={`h-6 w-6 ${
                             star <= formData.difficulty_rating
-                              ? 'text-amber-400 fill-amber-400'
-                              : 'text-slate-600'
+                              ? 'text-amber-700 fill-amber-400'
+                              : 'text-ink-mute'
                           }`}
                         />
                       </button>
                     ))}
                   </div>
-                  <span className="text-[10px] text-slate-500">1: Very Easy | 5: Extremely Difficult</span>
+                  <span className="text-xs text-ink-mute">1: Very Easy | 5: Extremely Difficult</span>
                 </div>
 
                 {/* Application Status */}
                 <div className="flex flex-col space-y-2">
-                  <label className="text-xs font-semibold text-slate-300">Current Filing Status</label>
+                  <label className="text-xs font-semibold text-ink-soft">Current Filing Status</label>
                   <select
                     name="application_status"
                     value={formData.application_status}
                     onChange={handleInputChange}
-                    className="bg-slate-900/50 border border-white/10 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-indigo-500 cursor-pointer text-slate-200"
+                    className="bg-paper border border-line rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-chakra cursor-pointer text-ink"
                   >
                     {APPLICATION_STATUSES.map((status) => (
                       <option key={status} value={status}>{status}</option>
@@ -278,12 +279,12 @@ export default function SurveyPage() {
                 {/* Bottleneck Reason (shows if difficulty is high or status is stuck) */}
                 {formData.difficulty_rating >= 3 && (
                   <div className="flex flex-col space-y-2 animate-in fade-in duration-200">
-                    <label className="text-xs font-semibold text-slate-300">Primary Access Bottleneck / Roadblock</label>
+                    <label className="text-xs font-semibold text-ink-soft">Primary Access Bottleneck / Roadblock</label>
                     <select
                       name="bottleneck_reason"
                       value={formData.bottleneck_reason}
                       onChange={handleInputChange}
-                      className="bg-slate-900/50 border border-white/10 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-indigo-500 cursor-pointer text-slate-200"
+                      className="bg-paper border border-line rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-chakra cursor-pointer text-ink"
                     >
                       <option value="">Select the main issue faced</option>
                       {BOTTLENECK_REASONS.map((reason) => (
@@ -298,24 +299,24 @@ export default function SurveyPage() {
         )}
 
         {/* Comments */}
-        <div className="flex flex-col space-y-2 border-t border-white/5 pt-4">
-          <label className="text-xs font-semibold text-slate-300">Detailed Feedback or Suggestions</label>
+        <div className="flex flex-col space-y-2 border-t border-line pt-4">
+          <label className="text-xs font-semibold text-ink-soft">Detailed Feedback or Suggestions</label>
           <textarea
             name="feedback_comments"
             rows={4}
             value={formData.feedback_comments}
             onChange={handleInputChange}
             placeholder="Describe the application process or details of what could be simplified..."
-            className="bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-xs sm:text-sm focus:outline-none focus:border-indigo-500 transition-colors"
+            className="bg-paper border border-line rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-chakra transition-colors"
           />
         </div>
 
         {/* Submit */}
-        <div className="border-t border-white/5 pt-6 flex justify-end">
+        <div className="border-t border-line pt-6 flex justify-end">
           <button
             type="submit"
             disabled={submitting}
-            className="cursor-pointer flex items-center justify-center space-x-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold text-sm shadow-md transition-colors"
+            className="cursor-pointer flex items-center justify-center space-x-2 px-6 py-2.5 rounded-xl bg-chakra hover:bg-chakra-dark disabled:opacity-50 text-white font-semibold text-sm shadow-md transition-colors"
           >
             {submitting ? (
               <>

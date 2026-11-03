@@ -15,7 +15,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/chat", tags=["AI Policy Assistant"])
 
-@router.post("/", response_model=ChatResponse)
+@router.post("", response_model=ChatResponse)
+@router.post("/", response_model=ChatResponse, include_in_schema=False)
 def converse_with_policy_ai(
     payload: ChatRequest,
     db: Session = Depends(get_db),
@@ -46,8 +47,8 @@ def converse_with_policy_ai(
             "student_status": user_profile.student_status
         }
 
-    lang = payload.language.lower()
-    original_message = payload.message.strip()
+    lang = payload.language
+    original_message = payload.message
 
     # Step 1: Translate to English if query is in Kannada or Hindi
     english_query = translation_service.translate_to_english(original_message, lang)

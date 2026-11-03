@@ -50,8 +50,17 @@ def test_synthesize_response_citations():
         schemes_db=db_schemes
     )
 
-    assert "grounded" in ans or "simulated" in ans
+    assert "grounded" in ans
+    assert "Prime Minister Employment Generation Programme" in ans
     assert len(citations) == 1
     assert citations[0].scheme_name == "pmegp"
     assert citations[0].scheme_title == "Prime Minister Employment Generation Programme"
     assert conf > 0
+
+
+def test_offline_answer_no_match_returns_no_citations():
+    db_schemes = [Scheme(id="s1", name="pmegp", title="PMEGP", state="Central", category="Business", description="Loans")]
+    ans, citations, conf = ai_service.synthesize_response(query="weather forecast", search_results=[], schemes_db=db_schemes)
+    assert citations == []
+    assert conf == 0
+    assert "couldn't find" in ans

@@ -3,8 +3,9 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { getApi } from '@/services/api';
-import { Search, Compass, ShieldAlert, Award, FileText, CheckCircle2, Bookmark, BookmarkCheck, Upload, Loader, UserCheck } from 'lucide-react';
+import Link from 'next/link';
+import { getApi, getErrorMessage } from '@/services/api';
+import { Search, Compass, FileText, CheckCircle2, Bookmark, BookmarkCheck, Upload, Loader, UserCheck, Plus } from 'lucide-react';
 
 interface Scheme {
   id: string;
@@ -21,7 +22,7 @@ interface Scheme {
 }
 
 function ExplorerContent() {
-  const { isLoaded, userId, getToken } = useAuth();
+  const { userId, getToken } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -50,6 +51,48 @@ function ExplorerContent() {
   const [adminFile, setAdminFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState('');
+
+  // Admin: delete scheme
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    const loadRole = async () => {
+      try {
+        const token = await getToken();
+        const res = await getApi(token).get('/api/auth/me');
+        if (active) setIsAdmin(Boolean(res.data?.is_admin));
+      } catch {
+        if (active) setIsAdmin(false);
+      }
+    };
+    loadRole();
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  const handleDeleteScheme = async () => {
+    if (!activeScheme) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      const token = await getToken();
+      await getApi(token).delete(`/api/schemes/${activeScheme.id}`);
+      setSchemes((prev) => prev.filter((s) => s.id !== activeScheme.id));
+      setActiveScheme(null);
+      setConfirmDelete(false);
+    } catch (err) {
+      setDeleteError(getErrorMessage(err, 'Could not delete the scheme.'));
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const fetchSchemes = async () => {
     try {
@@ -91,15 +134,19 @@ function ExplorerContent() {
   };
 
   const handleOpenDetails = (scheme: Scheme) => {
+    setConfirmDelete(false);
+    setDeleteError('');
     setActiveScheme(scheme);
     setEligibilityResult(null);
   };
 
   useEffect(() => {
-    fetchSchemes();
-    if (userId) {
-      fetchSavedList();
-    }
+    const t = setTimeout(() => {
+      fetchSchemes();
+      if (userId) fetchSavedList();
+    }, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, selectedState, selectedCategory, filterWomen, filterStudents, filterStartups, filterFarmers]);
 
   // Handle auto-focus from URL queries
@@ -108,9 +155,11 @@ function ExplorerContent() {
     if (focusId && schemes.length > 0) {
       const match = schemes.find((s) => s.id === focusId);
       if (match) {
-        handleOpenDetails(match);
+        const t = setTimeout(() => handleOpenDetails(match), 0);
+        return () => clearTimeout(t);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, schemes]);
 
   const toggleSaveScheme = async (schemeId: string) => {
@@ -148,10 +197,10 @@ function ExplorerContent() {
     } catch (e) {
       console.error('Failed to check eligibility:', e);
       setEligibilityResult({
-        status: 'Potentially Eligible',
-        reason: 'Eligibility calculations offline. Basic checks suggest match.',
-        required_documents: ['Aadhaar Card', 'Income Certificate'],
-        application_steps: ['Visit local representative center.']
+        status: 'Unavailable',
+        reason: `Could not run the eligibility check: ${getErrorMessage(e)}`,
+        required_documents: [],
+        application_steps: []
       });
     } finally {
       setCheckingEligibility(false);
@@ -178,7 +227,7 @@ function ExplorerContent() {
       setAdminFile(null);
     } catch (err: any) {
       console.error('Failed to index PDF:', err);
-      setUploadMsg('Error: Ingestion pipeline failed.');
+      setUploadMsg(`Error: ${getErrorMessage(err, 'Ingestion pipeline failed.')}`);
     } finally {
       setUploading(false);
     }
@@ -192,13 +241,18 @@ function ExplorerContent() {
 
   return (
     <div className="space-y-8 py-4">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-indigo-400 to-sky-400 bg-clip-text text-transparent">
-          Government Opportunities Explorer
-        </h1>
-        <p className="text-xs text-slate-400">
-          Search, filter, and audit your eligibility against state and central schemes.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="space-y-2">
+          <h1 className="font-display text-4xl font-extrabold text-ink">
+            Government Opportunities Explorer
+          </h1>
+          <p className="text-ink-mute">
+            Search, filter, and check your eligibility for state and central schemes.
+          </p>
+        </div>
+        <Link href="/explorer/new" className="btn-primary shrink-0">
+          <Plus className="h-5 w-5" /> Add a scheme
+        </Link>
       </div>
 
       {/* Filter panel */}
@@ -206,13 +260,13 @@ function ExplorerContent() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Search box */}
           <div className="relative">
-            <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-500" />
+            <Search className="absolute left-3.5 top-3 h-4 w-4 text-ink-mute" />
             <input
               type="text"
               placeholder="Search scheme name or details..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-slate-950/40 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-xs focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-paper border border-line rounded-xl pl-10 pr-4 py-2.5 text-xs focus:outline-none focus:border-chakra transition-colors"
             />
           </div>
 
@@ -220,62 +274,69 @@ function ExplorerContent() {
           <select
             value={selectedState}
             onChange={(e) => setSelectedState(e.target.value)}
-            className="bg-slate-950/40 border border-white/10 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer text-slate-300"
+            className="bg-paper border border-line rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-chakra transition-colors cursor-pointer text-ink-soft"
           >
             <option value="">All States / Regional Filters</option>
             <option value="Central">Central Govt (All India)</option>
-            <option value="Karnataka">Karnataka Only</option>
-            <option value="Maharashtra">Maharashtra Only</option>
+            {['Andhra Pradesh', 'Bihar', 'Delhi', 'Gujarat', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Odisha', 'Rajasthan', 'Tamil Nadu', 'Telangana', 'Uttar Pradesh', 'West Bengal'].map((st) => (
+              <option key={st} value={st}>{st}</option>
+            ))}
           </select>
 
           {/* Category selector */}
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="bg-slate-950/40 border border-white/10 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer text-slate-300"
+            className="bg-paper border border-line rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-chakra transition-colors cursor-pointer text-ink-soft"
           >
             <option value="">All Category Verticals</option>
             <option value="Business">Entrepreneurship & Startups</option>
             <option value="Education">Scholarships & Students</option>
             <option value="Agriculture">Agriculture & Farmers</option>
+            <option value="Healthcare">Healthcare</option>
+            <option value="Housing">Housing</option>
+            <option value="Employment">Employment & Skills</option>
+            <option value="Social Welfare">Social Welfare</option>
+            <option value="Women & Child">Women & Child</option>
+            <option value="General">General</option>
           </select>
         </div>
 
         {/* Toggles filters */}
-        <div className="flex flex-wrap gap-4 pt-2 border-t border-white/5">
-          <label className="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer">
+        <div className="flex flex-wrap gap-4 pt-2 border-t border-line">
+          <label className="flex items-center space-x-2 text-xs text-ink-soft cursor-pointer">
             <input
               type="checkbox"
               checked={filterWomen}
               onChange={(e) => setFilterWomen(e.target.checked)}
-              className="accent-indigo-500 h-4.5 w-4.5 rounded border-white/10"
+              className="accent-indigo-500 h-4.5 w-4.5 rounded border-line"
             />
             <span>Women Beneficiaries</span>
           </label>
-          <label className="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer">
+          <label className="flex items-center space-x-2 text-xs text-ink-soft cursor-pointer">
             <input
               type="checkbox"
               checked={filterStudents}
               onChange={(e) => setFilterStudents(e.target.checked)}
-              className="accent-indigo-500 h-4.5 w-4.5 rounded border-white/10"
+              className="accent-indigo-500 h-4.5 w-4.5 rounded border-line"
             />
             <span>Students / Youth</span>
           </label>
-          <label className="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer">
+          <label className="flex items-center space-x-2 text-xs text-ink-soft cursor-pointer">
             <input
               type="checkbox"
               checked={filterStartups}
               onChange={(e) => setFilterStartups(e.target.checked)}
-              className="accent-indigo-500 h-4.5 w-4.5 rounded border-white/10"
+              className="accent-indigo-500 h-4.5 w-4.5 rounded border-line"
             />
             <span>Startup Grants</span>
           </label>
-          <label className="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer">
+          <label className="flex items-center space-x-2 text-xs text-ink-soft cursor-pointer">
             <input
               type="checkbox"
               checked={filterFarmers}
               onChange={(e) => setFilterFarmers(e.target.checked)}
-              className="accent-indigo-500 h-4.5 w-4.5 rounded border-white/10"
+              className="accent-indigo-500 h-4.5 w-4.5 rounded border-line"
             />
             <span>Farmers & Agriculture</span>
           </label>
@@ -285,8 +346,8 @@ function ExplorerContent() {
       {/* Explorer Results Grid */}
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20">
-          <Loader className="h-8 w-8 text-indigo-400 animate-spin" />
-          <p className="mt-4 text-xs text-slate-400">Querying policy registry database...</p>
+          <Loader className="h-8 w-8 text-chakra animate-spin" />
+          <p className="mt-4 text-xs text-ink-mute">Querying policy registry database...</p>
         </div>
       ) : filteredSchemes.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -294,28 +355,28 @@ function ExplorerContent() {
             <div key={s.id} className="glass-panel p-6 rounded-2xl flex flex-col justify-between space-y-4 relative">
               <button
                 onClick={() => toggleSaveScheme(s.id)}
-                className="absolute right-4 top-4 text-slate-500 hover:text-indigo-400 transition-colors p-1"
+                className="absolute right-4 top-4 text-ink-mute hover:text-chakra-dark transition-colors p-1"
               >
                 {savedSchemeIds.includes(s.id) ? (
-                  <BookmarkCheck className="h-5 w-5 text-indigo-400" />
+                  <BookmarkCheck className="h-5 w-5 text-chakra" />
                 ) : (
                   <Bookmark className="h-5 w-5" />
                 )}
               </button>
 
               <div className="space-y-2">
-                <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/15">
+                <span className="inline-block px-2 py-0.5 rounded text-xs font-bold bg-chakra/10 text-chakra border border-chakra/15">
                   {s.state} | {s.category}
                 </span>
-                <h3 className="text-lg font-bold text-white pr-6">{s.title}</h3>
-                <span className="text-[10px] text-slate-500 block">{s.ministry}</span>
-                <p className="text-xs text-slate-400 line-clamp-3 leading-relaxed pt-2">{s.description}</p>
+                <h3 className="text-lg font-bold text-ink pr-6">{s.title}</h3>
+                <span className="text-xs text-ink-mute block">{s.ministry}</span>
+                <p className="text-xs text-ink-mute line-clamp-3 leading-relaxed pt-2">{s.description}</p>
               </div>
 
-              <div className="flex items-center space-x-3 pt-4 border-t border-white/5">
+              <div className="flex items-center space-x-3 pt-4 border-t border-line">
                 <button
                   onClick={() => handleOpenDetails(s)}
-                  className="cursor-pointer flex-1 py-2 rounded-xl text-center text-xs font-semibold border border-white/10 hover:bg-white/5 text-slate-200 transition-colors"
+                  className="cursor-pointer flex-1 py-2 rounded-xl text-center text-xs font-semibold border border-line hover:bg-mist text-ink transition-colors"
                 >
                   View Scheme Guidelines
                 </button>
@@ -324,7 +385,7 @@ function ExplorerContent() {
                     handleOpenDetails(s);
                     checkEligibility(s.id);
                   }}
-                  className="cursor-pointer flex-1 py-2 rounded-xl text-center text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow transition-colors"
+                  className="cursor-pointer flex-1 py-2 rounded-xl text-center text-xs font-semibold bg-chakra hover:bg-chakra-dark text-white shadow transition-colors"
                 >
                   Verify Eligibility
                 </button>
@@ -334,23 +395,23 @@ function ExplorerContent() {
         </div>
       ) : (
         <div className="text-center py-20 glass-panel rounded-2xl">
-          <Compass className="h-10 w-10 text-slate-600 mx-auto" />
-          <h3 className="mt-4 text-sm font-bold text-white">No Schemes Found</h3>
-          <p className="text-xs text-slate-500 mt-2">Adjust your filters to see central or regional opportunities.</p>
+          <Compass className="h-10 w-10 text-ink-mute mx-auto" />
+          <h3 className="mt-4 text-sm font-bold text-ink">No Schemes Found</h3>
+          <p className="text-xs text-ink-mute mt-2">Adjust your filters to see central or regional opportunities.</p>
         </div>
       )}
 
       {/* Expanded Scheme Drawer / Dialog Overlay */}
       {activeScheme && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-sm">
           <div className="glass-panel w-full max-w-3xl max-h-[85vh] rounded-3xl overflow-hidden flex flex-col animate-in fade-in-50 zoom-in-95 duration-200">
             {/* Header */}
-            <div className="p-6 border-b border-white/5 bg-slate-950/20 flex justify-between items-center">
+            <div className="p-6 border-b border-line bg-paper flex justify-between items-center">
               <div>
-                <span className="text-[9px] font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded">
+                <span className="text-xs font-bold uppercase tracking-wider text-chakra bg-chakra/10 px-2 py-0.5 rounded">
                   {activeScheme.state} | {activeScheme.category}
                 </span>
-                <h2 className="text-lg sm:text-xl font-bold text-white mt-1">{activeScheme.title}</h2>
+                <h2 className="text-lg sm:text-xl font-bold text-ink mt-1">{activeScheme.title}</h2>
               </div>
               <button
                 onClick={() => {
@@ -358,7 +419,7 @@ function ExplorerContent() {
                   setEligibilityResult(null);
                   router.push('/explorer'); // clear query param
                 }}
-                className="cursor-pointer text-slate-400 hover:text-white text-lg font-bold"
+                className="cursor-pointer text-ink-mute hover:text-ink text-lg font-bold"
               >
                 ✕
               </button>
@@ -370,59 +431,82 @@ function ExplorerContent() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="md:col-span-2 space-y-4">
                   <div>
-                    <h4 className="text-xs uppercase font-bold text-slate-500 tracking-wider">Description</h4>
-                    <p className="text-xs text-slate-300 leading-relaxed pt-1.5">{activeScheme.description}</p>
+                    <h4 className="text-xs uppercase font-bold text-ink-mute tracking-wider">Description</h4>
+                    <p className="text-xs text-ink-soft leading-relaxed pt-1.5">{activeScheme.description}</p>
                   </div>
                   <div>
-                    <h4 className="text-xs uppercase font-bold text-slate-500 tracking-wider">Benefits & Financial Subsidy</h4>
-                    <p className="text-xs text-slate-300 leading-relaxed pt-1.5">{activeScheme.benefits}</p>
+                    <h4 className="text-xs uppercase font-bold text-ink-mute tracking-wider">Benefits & Financial Subsidy</h4>
+                    <p className="text-xs text-ink-soft leading-relaxed pt-1.5">{activeScheme.benefits}</p>
                   </div>
                   <div>
-                    <h4 className="text-xs uppercase font-bold text-slate-500 tracking-wider">Eligibility Requirements</h4>
-                    <p className="text-xs text-slate-300 leading-relaxed pt-1.5">{activeScheme.eligibility_criteria}</p>
+                    <h4 className="text-xs uppercase font-bold text-ink-mute tracking-wider">Eligibility Requirements</h4>
+                    <p className="text-xs text-ink-soft leading-relaxed pt-1.5">{activeScheme.eligibility_criteria}</p>
                   </div>
                 </div>
 
                 {/* Right side panels: docs, workflow */}
-                <div className="space-y-4 bg-slate-950/20 p-4 rounded-2xl border border-white/5 h-fit text-xs">
+                <div className="space-y-4 bg-paper p-4 rounded-2xl border border-line h-fit text-xs">
                   <div>
-                    <span className="font-semibold text-slate-400 flex items-center space-x-1.5">
-                      <FileText className="h-3.5 w-3.5 text-indigo-400" />
+                    <span className="font-semibold text-ink-mute flex items-center space-x-1.5">
+                      <FileText className="h-3.5 w-3.5 text-chakra" />
                       <span>Documents Needed</span>
                     </span>
-                    <p className="text-slate-300 mt-1.5 leading-relaxed">{activeScheme.required_documents}</p>
+                    <p className="text-ink-soft mt-1.5 leading-relaxed">{activeScheme.required_documents}</p>
                   </div>
                   <div>
-                    <span className="font-semibold text-slate-400 flex items-center space-x-1.5">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                    <span className="font-semibold text-ink-mute flex items-center space-x-1.5">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-leaf" />
                       <span>Filing Steps</span>
                     </span>
-                    <p className="text-slate-300 mt-1.5 leading-relaxed">{activeScheme.application_steps}</p>
+                    <p className="text-ink-soft mt-1.5 leading-relaxed">{activeScheme.application_steps}</p>
                   </div>
                 </div>
               </div>
 
-              {/* RAG guidelines uploader collapsible panel */}
-              <details className="group border-t border-white/5 pt-4">
-                <summary className="cursor-pointer text-xs font-bold text-slate-400 hover:text-indigo-400 flex items-center space-x-1">
-                  <span>Administrative: Index Guideline Guidelines PDF</span>
+              {/* Admin-only tools: delete scheme + guideline PDF uploader */}
+              {isAdmin && (
+              <div className="space-y-4 border-t border-line pt-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-seal/30 bg-seal-tint/60 p-3">
+                  <p className="text-sm font-bold text-seal">
+                    {confirmDelete ? 'Delete this scheme permanently? Saved bookmarks and applications for it are removed too.' : 'Admin: remove this scheme'}
+                  </p>
+                  <div className="flex gap-2">
+                    {confirmDelete && (
+                      <button type="button" onClick={() => setConfirmDelete(false)} className="cursor-pointer rounded-lg border-2 border-line bg-paper px-3 py-1.5 text-sm font-bold text-ink">
+                        Cancel
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={deleting}
+                      onClick={() => (confirmDelete ? handleDeleteScheme() : setConfirmDelete(true))}
+                      className="cursor-pointer rounded-lg bg-seal px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50"
+                    >
+                      {deleting ? 'Deleting...' : confirmDelete ? 'Yes, delete' : 'Delete scheme'}
+                    </button>
+                  </div>
+                  {deleteError && <p className="w-full text-sm font-bold text-seal">{deleteError}</p>}
+                </div>
+              <details className="group">
+                <summary className="cursor-pointer text-xs font-bold text-ink-mute hover:text-chakra-dark flex items-center space-x-1">
+                  <span>Admin: upload the official guidelines PDF</span>
                 </summary>
-                <form onSubmit={handleUploadGuidelines} className="mt-4 p-4 bg-slate-950/30 border border-white/5 rounded-2xl space-y-4 text-xs">
-                  <p className="text-[10px] text-slate-500">
+                <form onSubmit={handleUploadGuidelines} className="mt-4 p-4 bg-paper border border-line rounded-2xl space-y-4 text-xs">
+                  <p className="text-xs text-ink-mute">
                     Upload official government PDF instructions to vectorize and save in ChromaDB, updating RAG answers.
                   </p>
-                  {uploadMsg && <div className="p-2 bg-indigo-500/10 border border-indigo-500/10 text-indigo-400 rounded-lg">{uploadMsg}</div>}
+                  {uploadMsg && <div className="p-2 bg-chakra/10 border border-chakra/10 text-chakra rounded-lg">{uploadMsg}</div>}
                   <div className="flex flex-col sm:flex-row items-center gap-3">
                     <input
                       type="file"
                       accept=".pdf"
                       onChange={(e) => setAdminFile(e.target.files?.[0] || null)}
-                      className="text-[10px] text-slate-400 file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-[10px] file:font-semibold file:bg-white/5 file:text-white file:hover:bg-white/10 cursor-pointer"
+                      className="text-xs text-ink-mute file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-mist file:text-ink file:hover:bg-mist cursor-pointer"
                     />
                     <button
                       type="submit"
                       disabled={uploading || !adminFile}
-                      className="cursor-pointer w-full sm:w-auto px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold flex items-center justify-center space-x-1.5"
+                      className="cursor-pointer w-full sm:w-auto px-4 py-1.5 rounded-lg bg-chakra hover:bg-chakra-dark disabled:opacity-50 text-white font-semibold flex items-center justify-center space-x-1.5"
                     >
                       {uploading ? (
                         <>
@@ -439,19 +523,21 @@ function ExplorerContent() {
                   </div>
                 </form>
               </details>
+              </div>
+              )}
 
               {/* Eligibility evaluation result display */}
-              <div className="border-t border-white/5 pt-4 space-y-4">
+              <div className="border-t border-line pt-4 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-white flex items-center space-x-2">
-                    <UserCheck className="h-4 w-4 text-indigo-400" />
+                  <h3 className="text-sm font-bold text-ink flex items-center space-x-2">
+                    <UserCheck className="h-4 w-4 text-chakra" />
                     <span>User Profile Eligibility Check</span>
                   </h3>
                   {!eligibilityResult && (
                     <button
                       onClick={() => checkEligibility(activeScheme.id)}
                       disabled={checkingEligibility}
-                      className="cursor-pointer text-xs font-semibold px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white flex items-center space-x-1"
+                      className="cursor-pointer text-xs font-semibold px-4 py-1.5 rounded-xl bg-chakra hover:bg-chakra-dark disabled:opacity-50 text-white flex items-center space-x-1"
                     >
                       {checkingEligibility && <Loader className="h-3 w-3 animate-spin" />}
                       <span>Run Audit Engine</span>
@@ -460,32 +546,32 @@ function ExplorerContent() {
                 </div>
 
                 {eligibilityResult && (
-                  <div className="p-4 bg-slate-950/40 border border-white/5 rounded-2xl space-y-4">
+                  <div className="p-4 bg-paper border border-line rounded-2xl space-y-4">
                     <div className="flex items-center space-x-3">
-                      <span className="text-xs font-bold text-slate-400">Match Status:</span>
+                      <span className="text-xs font-bold text-ink-mute">Match Status:</span>
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-extrabold ${
                           eligibilityResult.status === 'Eligible'
-                            ? 'bg-emerald-500/15 text-emerald-400'
+                            ? 'bg-leaf/15 text-leaf'
                             : eligibilityResult.status === 'Potentially Eligible'
-                            ? 'bg-amber-500/15 text-amber-400'
-                            : 'bg-rose-500/15 text-rose-400'
+                            ? 'bg-amber-500/15 text-amber-700'
+                            : 'bg-rose-500/15 text-seal'
                         }`}
                       >
                         {eligibilityResult.status}
                       </span>
                     </div>
 
-                    <div className="space-y-3 text-xs leading-relaxed text-slate-300">
+                    <div className="space-y-3 text-xs leading-relaxed text-ink-soft">
                       <div>
-                        <span className="font-bold text-white block">Audit Rationale:</span>
-                        <p className="mt-1 text-slate-400">{eligibilityResult.reason}</p>
+                        <span className="font-bold text-ink block">Audit Rationale:</span>
+                        <p className="mt-1 text-ink-mute">{eligibilityResult.reason}</p>
                       </div>
 
                       {eligibilityResult.required_documents.length > 0 && (
                         <div>
-                          <span className="font-bold text-white block">Dynamic Document Checklists:</span>
-                          <ul className="list-disc pl-4 mt-1 space-y-1 text-slate-400">
+                          <span className="font-bold text-ink block">Dynamic Document Checklists:</span>
+                          <ul className="list-disc pl-4 mt-1 space-y-1 text-ink-mute">
                             {eligibilityResult.required_documents.map((d: string, dIdx: number) => (
                               <li key={dIdx}>{d}</li>
                             ))}
@@ -495,8 +581,8 @@ function ExplorerContent() {
 
                       {eligibilityResult.application_steps.length > 0 && (
                         <div>
-                          <span className="font-bold text-white block">Next Application Steps:</span>
-                          <ol className="list-decimal pl-4 mt-1 space-y-1 text-slate-400">
+                          <span className="font-bold text-ink block">Next Application Steps:</span>
+                          <ol className="list-decimal pl-4 mt-1 space-y-1 text-ink-mute">
                             {eligibilityResult.application_steps.map((s: string, sIdx: number) => (
                               <li key={sIdx}>{s}</li>
                             ))}
@@ -510,7 +596,7 @@ function ExplorerContent() {
             </div>
 
             {/* Bottom Actions */}
-            <div className="p-6 border-t border-white/5 bg-slate-950/20 flex justify-end space-x-3">
+            <div className="p-6 border-t border-line bg-paper flex justify-end space-x-3">
               <button
                 onClick={async () => {
                   try {
@@ -523,7 +609,7 @@ function ExplorerContent() {
                     console.error(err);
                   }
                 }}
-                className="cursor-pointer text-xs font-semibold px-6 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow"
+                className="cursor-pointer text-xs font-semibold px-6 py-2 rounded-xl bg-chakra hover:bg-chakra-dark text-white shadow"
               >
                 File Online Application
               </button>
@@ -539,8 +625,8 @@ export default function ExplorerPage() {
   return (
     <Suspense fallback={
       <div className="flex flex-col items-center justify-center min-h-[50vh]">
-        <Loader className="h-10 w-10 text-indigo-400 animate-spin" />
-        <p className="mt-4 text-xs text-slate-400">Loading policy explorer...</p>
+        <Loader className="h-10 w-10 text-chakra animate-spin" />
+        <p className="mt-4 text-xs text-ink-mute">Loading policy explorer...</p>
       </div>
     }>
       <ExplorerContent />

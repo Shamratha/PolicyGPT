@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { getApi } from '@/services/api';
-import { Bookmark, Compass, FileText, CheckSquare, Search, Award, Loader, Settings, Plus, RefreshCw } from 'lucide-react';
+import { Bookmark, CheckSquare, Search, Award, Loader, Settings } from 'lucide-react';
 
 export default function DashboardPage() {
   const { isLoaded, userId, getToken } = useAuth();
@@ -40,9 +40,10 @@ export default function DashboardPage() {
       router.push('/');
       return;
     }
-    if (userId) {
-      fetchDashboard();
-    }
+    if (!userId) return;
+    const t = setTimeout(fetchDashboard, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, userId]);
 
   const handleUnsave = async (schemeId: string) => {
@@ -115,8 +116,8 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh]">
-        <Loader className="h-10 w-10 text-indigo-400 animate-spin" />
-        <p className="mt-4 text-xs text-slate-400">Loading your personalized workspace...</p>
+        <Loader className="h-10 w-10 text-chakra animate-spin" />
+        <p className="mt-4 text-xs text-ink-mute">Loading your personalized workspace...</p>
       </div>
     );
   }
@@ -126,17 +127,17 @@ export default function DashboardPage() {
       {/* Welcome header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-indigo-400 to-sky-400 bg-clip-text text-transparent">
+          <h1 className="font-display text-4xl font-extrabold text-ink">
             Personal Dashboard
           </h1>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-ink-mute">
             Monitor saved programs, manage document checklists, and review automatic eligibility audits.
           </p>
         </div>
 
         <button
           onClick={() => router.push('/profile')}
-          className="cursor-pointer flex items-center space-x-1 px-4 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-xs text-slate-300 transition-colors"
+          className="cursor-pointer flex items-center space-x-1 px-4 py-2 rounded-xl border border-line hover:bg-mist text-xs text-ink-soft transition-colors"
         >
           <Settings className="h-4 w-4" />
           <span>Profile Settings</span>
@@ -148,8 +149,8 @@ export default function DashboardPage() {
         <div className="lg:col-span-2 space-y-8">
           {/* Active Applications */}
           <div className="glass-panel p-6 rounded-2xl space-y-4">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-2">
-              <CheckSquare className="h-4 w-4 text-indigo-400" />
+            <h2 className="text-sm font-bold uppercase tracking-wider text-ink-mute flex items-center space-x-2">
+              <CheckSquare className="h-4 w-4 text-chakra" />
               <span>Applications Progress Tracker</span>
             </h2>
 
@@ -159,24 +160,24 @@ export default function DashboardPage() {
                   <div
                     key={app.id}
                     onClick={() => setSelectedApp(app)}
-                    className="p-4 rounded-xl border border-white/5 bg-slate-900/30 hover:border-indigo-500/20 transition-all cursor-pointer space-y-3"
+                    className="p-4 rounded-xl border border-line bg-paper hover:border-chakra/20 transition-all cursor-pointer space-y-3"
                   >
                     <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-bold text-white">{app.scheme_title}</h3>
-                      <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400">
+                      <h3 className="text-sm font-bold text-ink">{app.scheme_title}</h3>
+                      <span className="text-xs font-bold uppercase px-2 py-0.5 rounded bg-chakra/10 text-chakra">
                         {app.status}
                       </span>
                     </div>
 
                     {/* Progress bar */}
                     <div className="space-y-1">
-                      <div className="flex justify-between text-[10px] text-slate-500">
+                      <div className="flex justify-between text-xs text-ink-mute">
                         <span>Documents Upload Checklist</span>
-                        <span className="font-semibold text-slate-300">{app.progress}% Complete</span>
+                        <span className="font-semibold text-ink-soft">{app.progress}% Complete</span>
                       </div>
-                      <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden">
+                      <div className="w-full bg-paper h-2 rounded-full overflow-hidden">
                         <div
-                          className="bg-indigo-500 h-full rounded-full transition-all duration-500"
+                          className="bg-chakra h-full rounded-full transition-all duration-500"
                           style={{ width: `${app.progress}%` }}
                         />
                       </div>
@@ -185,11 +186,11 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-10 border border-dashed border-white/5 rounded-xl text-slate-500 text-xs space-y-2">
+              <div className="text-center py-10 border border-dashed border-line rounded-xl text-ink-mute text-xs space-y-2">
                 <p>No active filings started yet.</p>
                 <button
                   onClick={() => router.push('/explorer')}
-                  className="cursor-pointer text-[10px] text-indigo-400 font-bold hover:underline"
+                  className="cursor-pointer text-xs text-chakra font-bold hover:underline"
                 >
                   Browse schemes to start applying
                 </button>
@@ -199,8 +200,8 @@ export default function DashboardPage() {
 
           {/* Automatic Eligibility Matches */}
           <div className="glass-panel p-6 rounded-2xl space-y-4">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-2">
-              <Award className="h-4 w-4 text-emerald-400" />
+            <h2 className="text-sm font-bold uppercase tracking-wider text-ink-mute flex items-center space-x-2">
+              <Award className="h-4 w-4 text-leaf" />
               <span>Direct Eligibility Audits</span>
             </h2>
 
@@ -209,27 +210,27 @@ export default function DashboardPage() {
                 {data.eligibility_matches.map((match: any) => (
                   <div
                     key={match.scheme_id}
-                    className="p-4 rounded-xl border border-white/5 bg-slate-900/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                    className="p-4 rounded-xl border border-line bg-paper flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                   >
                     <div className="space-y-1">
                       <div className="flex items-center space-x-2">
-                        <h3 className="text-xs font-bold text-white">{match.title}</h3>
+                        <h3 className="text-xs font-bold text-ink">{match.title}</h3>
                         <span
-                          className={`px-2 py-0.5 rounded text-[9px] font-extrabold ${
+                          className={`px-2 py-0.5 rounded text-xs font-extrabold ${
                             match.status === 'Eligible'
-                              ? 'bg-emerald-500/10 text-emerald-400'
-                              : 'bg-amber-500/10 text-amber-400'
+                              ? 'bg-leaf/10 text-leaf'
+                              : 'bg-amber-500/10 text-amber-700'
                           }`}
                         >
                           {match.status}
                         </span>
                       </div>
-                      <p className="text-[10px] text-slate-400 max-w-lg">{match.reason}</p>
+                      <p className="text-xs text-ink-mute max-w-lg">{match.reason}</p>
                     </div>
 
                     <button
                       onClick={() => router.push(`/explorer?id=${match.scheme_id}`)}
-                      className="cursor-pointer text-[10px] font-bold text-indigo-400 hover:text-indigo-300 border border-white/10 hover:bg-white/5 px-3 py-1.5 rounded-lg whitespace-nowrap"
+                      className="cursor-pointer text-xs font-bold text-chakra hover:text-chakra-dark border border-line hover:bg-mist px-3 py-1.5 rounded-lg whitespace-nowrap"
                     >
                       Audit / File Application
                     </button>
@@ -237,7 +238,7 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-slate-500 text-center py-6">
+              <p className="text-xs text-ink-mute text-center py-6">
                 No verified matches. Edit your profile attributes to calculate matches.
               </p>
             )}
@@ -248,8 +249,8 @@ export default function DashboardPage() {
         <div className="space-y-8">
           {/* Saved Schemes */}
           <div className="glass-panel p-6 rounded-2xl space-y-4">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-2">
-              <Bookmark className="h-4 w-4 text-indigo-400" />
+            <h2 className="text-sm font-bold uppercase tracking-wider text-ink-mute flex items-center space-x-2">
+              <Bookmark className="h-4 w-4 text-chakra" />
               <span>Saved Programs</span>
             </h2>
 
@@ -258,22 +259,22 @@ export default function DashboardPage() {
                 {data.saved_schemes.map((s: any) => (
                   <div
                     key={s.id}
-                    className="p-3 rounded-xl border border-white/5 bg-slate-900/40 flex items-center justify-between gap-2 text-xs"
+                    className="p-3 rounded-xl border border-line bg-paper flex items-center justify-between gap-2 text-xs"
                   >
                     <div className="truncate">
-                      <h4 className="font-bold text-white truncate">{s.title}</h4>
-                      <span className="text-[9px] text-slate-500">{s.state} | {s.category}</span>
+                      <h4 className="font-bold text-ink truncate">{s.title}</h4>
+                      <span className="text-xs text-ink-mute">{s.state} | {s.category}</span>
                     </div>
                     <div className="flex space-x-2 ml-auto">
                       <button
                         onClick={() => router.push(`/explorer?id=${s.scheme_id}`)}
-                        className="cursor-pointer text-[9px] font-bold text-indigo-400 hover:underline"
+                        className="cursor-pointer text-xs font-bold text-chakra hover:underline"
                       >
                         Open
                       </button>
                       <button
                         onClick={() => handleUnsave(s.scheme_id)}
-                        className="cursor-pointer text-[9px] font-bold text-rose-500 hover:underline"
+                        className="cursor-pointer text-xs font-bold text-seal hover:underline"
                       >
                         Unsave
                       </button>
@@ -282,14 +283,14 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-slate-500 text-center py-6">No saved opportunities yet.</p>
+              <p className="text-xs text-ink-mute text-center py-6">No saved opportunities yet.</p>
             )}
           </div>
 
           {/* Recent Searches */}
           <div className="glass-panel p-6 rounded-2xl space-y-4">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-2">
-              <Search className="h-4 w-4 text-indigo-400" />
+            <h2 className="text-sm font-bold uppercase tracking-wider text-ink-mute flex items-center space-x-2">
+              <Search className="h-4 w-4 text-chakra" />
               <span>Search Inquiries</span>
             </h2>
             {data?.recent_searches && data.recent_searches.length > 0 ? (
@@ -297,7 +298,7 @@ export default function DashboardPage() {
                 {data.recent_searches.map((h: any) => (
                   <div
                     key={h.id}
-                    className="p-2.5 rounded-lg bg-slate-950/20 text-slate-400 text-xs truncate hover:text-white transition-colors cursor-pointer"
+                    className="p-2.5 rounded-lg bg-paper text-ink-mute text-xs truncate hover:text-ink transition-colors cursor-pointer"
                     onClick={() => router.push(`/chat`)}
                   >
                     {h.query}
@@ -305,7 +306,7 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-slate-500 text-center py-6">No searches performed.</p>
+              <p className="text-xs text-ink-mute text-center py-6">No searches performed.</p>
             )}
           </div>
         </div>
@@ -313,13 +314,13 @@ export default function DashboardPage() {
 
       {/* Dynamic Application Checklist Modal */}
       {selectedApp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-sm">
           <div className="glass-panel w-full max-w-md rounded-2xl p-6 space-y-5 animate-in fade-in-50 zoom-in-95 duration-200">
-            <div className="flex justify-between items-center border-b border-white/5 pb-3">
-              <h2 className="text-base font-bold text-white truncate pr-6">{selectedApp.scheme_title}</h2>
+            <div className="flex justify-between items-center border-b border-line pb-3">
+              <h2 className="text-base font-bold text-ink truncate pr-6">{selectedApp.scheme_title}</h2>
               <button
                 onClick={() => setSelectedApp(null)}
-                className="cursor-pointer text-slate-400 hover:text-white text-sm"
+                className="cursor-pointer text-ink-mute hover:text-ink text-sm"
               >
                 ✕
               </button>
@@ -328,8 +329,8 @@ export default function DashboardPage() {
             {/* Checklist items */}
             <div className="space-y-4">
               <div className="flex justify-between items-center text-xs">
-                <span className="font-bold text-slate-400">Required Document Checklist:</span>
-                <span className="text-slate-500">{selectedApp.progress}% Done</span>
+                <span className="font-bold text-ink-mute">Required Document Checklist:</span>
+                <span className="text-ink-mute">{selectedApp.progress}% Done</span>
               </div>
 
               {Object.keys(selectedApp.document_checklist).length > 0 ? (
@@ -337,34 +338,34 @@ export default function DashboardPage() {
                   {Object.entries(selectedApp.document_checklist).map(([doc, checked]: [string, any]) => (
                     <label
                       key={doc}
-                      className="flex items-center space-x-3 p-3 rounded-xl border border-white/5 bg-slate-900/30 hover:bg-slate-900/60 cursor-pointer transition-colors"
+                      className="flex items-center space-x-3 p-3 rounded-xl border border-line bg-paper hover:bg-mist cursor-pointer transition-colors"
                     >
                       <input
                         type="checkbox"
                         checked={checked}
                         onChange={() => handleChecklistToggle(doc, checked)}
                         disabled={updatingChecklist}
-                        className="h-4.5 w-4.5 accent-indigo-500 rounded border-white/10"
+                        className="h-4.5 w-4.5 accent-indigo-500 rounded border-line"
                       />
-                      <span className={checked ? 'line-through text-slate-500' : 'text-slate-200'}>
+                      <span className={checked ? 'line-through text-ink-mute' : 'text-ink'}>
                         {doc}
                       </span>
                     </label>
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-slate-500 italic">No document requirements defined. General filing rules apply.</p>
+                <p className="text-xs text-ink-mute italic">No document requirements defined. General filing rules apply.</p>
               )}
             </div>
 
             {/* Application status updater */}
-            <div className="border-t border-white/5 pt-4 flex items-center justify-between text-xs">
-              <span className="font-bold text-slate-400">Application Status:</span>
+            <div className="border-t border-line pt-4 flex items-center justify-between text-xs">
+              <span className="font-bold text-ink-mute">Application Status:</span>
               <select
                 value={selectedApp.status}
                 onChange={(e) => handleStatusChange(e.target.value)}
                 disabled={updatingChecklist}
-                className="bg-slate-950 border border-white/10 text-xs font-semibold rounded-lg px-2 py-1 text-slate-300 cursor-pointer"
+                className="bg-paper border border-line text-xs font-semibold rounded-lg px-2 py-1 text-ink-soft cursor-pointer"
               >
                 <option value="Draft">Draft</option>
                 <option value="Submitted">Submitted</option>

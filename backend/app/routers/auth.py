@@ -2,7 +2,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.utils.auth_utils import get_current_user_claims
+from app.utils.auth_utils import get_current_user_claims, require_admin
 from app.repositories.user_repo import user_repository
 from app.schemas.auth import UserResponse
 
@@ -39,3 +39,14 @@ def sync_user(db: Session = Depends(get_db), claims: dict = Depends(get_current_
             raise HTTPException(status_code=500, detail="Failed to sync user session.")
             
     return user
+
+
+@router.get("/me")
+def who_am_i(claims: dict = Depends(get_current_user_claims)):
+    """Tells the frontend who is signed in and whether they may manage schemes."""
+    try:
+        require_admin(claims)
+        is_admin = True
+    except HTTPException:
+        is_admin = False
+    return {"clerk_id": claims.get("sub"), "is_admin": is_admin}

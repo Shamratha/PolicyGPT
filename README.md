@@ -86,6 +86,21 @@ graph TD
 
 ---
 
+### Adding schemes and scholarships
+
+Open **Schemes -> Add a scheme** (`/explorer/new`). Enter the details, who it is for, an optional deadline and
+eligibility rules (for example *Age at least 18*, *State is Karnataka*, *Annual family income at most 250000*).
+The scheme is immediately available in the scheme list, the home-page Quick check, the AI assistant and the
+eligibility checker. All input is validated on both the form and the API (`POST /api/schemes`).
+
+Only administrators can add, delete, scrape or upload schemes. List them in `ADMIN_EMAILS` in `backend/.env`
+(emails or Clerk user ids, comma separated). If `ADMIN_EMAILS` is empty, every signed-in user is treated as an
+administrator, which is convenient for local demos.
+
+To wipe test data and restore the original demo data, close the backend window and run `reset_demo_data.bat`.
+
+---
+
 ## Core Features
 
 1. **AI Policy Assistant**: Grounded Conversational RAG interface (GPT-4o) with citation tracking and confidence scores.
@@ -134,8 +149,10 @@ Create a `.env` file inside the `backend` and `frontend` directories.
 
 ### Backend `.env`:
 ```env
-DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/policygpt
+# Optional - defaults to a local SQLite file; use PostgreSQL in production:
+# DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/policygpt
 CHROMA_PERSIST_DIR=./chroma_db
+# Optional - leave as sk-mock... for offline mode
 OPENAI_API_KEY=your-openai-api-key
 CLERK_JWKS_URL=https://api.clerk.com/v1/jwks
 ENVIRONMENT=development
@@ -148,6 +165,21 @@ NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
 CLERK_SECRET_KEY=sk_test_...
 ```
+
+---
+
+## Quick Start (Windows, no Docker / no API keys needed)
+
+1. Install **Python 3.12** and **Node.js 20+**.
+2. Double-click **`start_policygpt.bat`** in the project root. It
+   - creates `.venv` and installs `backend/requirements.txt` on first run,
+   - starts the FastAPI backend on `http://localhost:8000` (API docs at `/docs`),
+   - starts the Next.js frontend on `http://localhost:3000` and opens it in Microsoft Edge.
+
+By default the backend uses a local SQLite file (`backend/policygpt.db`) that is created and seeded
+automatically, and runs the AI features in **offline mode**: keyword retrieval over the scheme
+database with structured, cited answers. Put a real `OPENAI_API_KEY` in `backend/.env` to switch the
+assistant, eligibility engine, translation and scraper to GPT-4o.
 
 ---
 
@@ -213,5 +245,16 @@ The services will be available at:
 To run the automated test suite checking the eligibility parser, translation fallbacks, and PDF compiler:
 ```bash
 cd backend
-PYTHONPATH=. .venv/bin/pytest tests/
+python -m pytest tests -v
 ```
+
+The suite (`backend/tests`) runs against a temporary SQLite database and covers:
+- every REST endpoint used by the frontend (`tests/test_api.py`),
+- **input validation**: profile (age 0-120, income >= 0, gender, field lengths), chat (empty/oversized
+  messages, unsupported languages, malformed history), surveys (rating 1-5, allowed statuses,
+  logical consistency between "aware" / "applied" / status), application status updates,
+  scraper URLs and PDF uploads,
+- the rule-based eligibility engine, offline RAG answers, the scraper pipeline and the PDF report.
+
+On Windows you can also double-click `_checks/run_checks.bat`, which runs the backend tests,
+TypeScript check, ESLint and a production build and writes the logs to `_checks/`.

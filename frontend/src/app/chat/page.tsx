@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
-import { getApi } from '@/services/api';
-import { MessageSquare, Sparkles, Send, Loader, Globe, ArrowRight, ClipboardList, ShieldAlert, Award } from 'lucide-react';
+import { getApi, getErrorMessage } from '@/services/api';
+import Markdown from '@/components/Markdown';
+import { MessageSquare, Sparkles, Send, Loader, Globe, ArrowRight } from 'lucide-react';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -56,9 +57,10 @@ export default function ChatPage() {
       router.push('/');
       return;
     }
-    if (userId) {
-      fetchDashboardDetails();
-    }
+    if (!userId) return;
+    const t = setTimeout(fetchDashboardDetails, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, userId]);
 
   useEffect(() => {
@@ -111,7 +113,7 @@ export default function ChatPage() {
         ...prev,
         {
           role: 'assistant',
-          content: 'I encountered an error verifying scheme guidelines. Please make sure your server is online and try again.',
+          content: `Sorry, I could not answer that: ${getErrorMessage(e)}`,
         },
       ]);
     } finally {
@@ -124,9 +126,9 @@ export default function ChatPage() {
   };
 
   const renderConfidence = (score: number) => {
-    const color = score > 80 ? 'text-emerald-400 bg-emerald-500/10' : score > 50 ? 'text-amber-400 bg-amber-500/10' : 'text-rose-400 bg-rose-500/10';
+    const color = score > 80 ? 'text-leaf bg-leaf/10' : score > 50 ? 'text-amber-700 bg-amber-500/10' : 'text-seal bg-rose-500/10';
     return (
-      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${color}`}>
+      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${color}`}>
         Grounded Confidence: {score}%
       </span>
     );
@@ -135,91 +137,91 @@ export default function ChatPage() {
   return (
     <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-140px)] min-h-[500px]">
       {/* 1. Left Sidebar Details */}
-      <div className="hidden lg:flex flex-col space-y-6 lg:col-span-1 border-r border-white/5 pr-6 overflow-y-auto">
+      <div className="hidden lg:flex flex-col space-y-6 lg:col-span-1 border-r border-line pr-6 overflow-y-auto">
         {/* User profile summary */}
         <div className="glass-panel p-5 rounded-2xl space-y-4">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-1.5">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-ink-mute flex items-center space-x-1.5">
             <UserIcon />
             <span>Profile Context</span>
           </h3>
           {profile ? (
-            <div className="text-xs space-y-2 text-slate-300">
-              <div className="flex justify-between border-b border-white/5 pb-1">
-                <span className="text-slate-500">Name</span>
-                <span className="font-medium text-white truncate max-w-[120px]">{profile.name || 'Unspecified'}</span>
+            <div className="text-xs space-y-2 text-ink-soft">
+              <div className="flex justify-between border-b border-line pb-1">
+                <span className="text-ink-mute">Name</span>
+                <span className="font-medium text-ink truncate max-w-[120px]">{profile.name || 'Unspecified'}</span>
               </div>
-              <div className="flex justify-between border-b border-white/5 pb-1">
-                <span className="text-slate-500">Age / Gender</span>
-                <span className="font-medium text-white">{profile.age ? `${profile.age} yrs` : '—'} / {profile.gender}</span>
+              <div className="flex justify-between border-b border-line pb-1">
+                <span className="text-ink-mute">Age / Gender</span>
+                <span className="font-medium text-ink">{profile.age ? `${profile.age} yrs` : '—'} / {profile.gender}</span>
               </div>
-              <div className="flex justify-between border-b border-white/5 pb-1">
-                <span className="text-slate-500">Residency State</span>
-                <span className="font-medium text-white">{profile.state}</span>
+              <div className="flex justify-between border-b border-line pb-1">
+                <span className="text-ink-mute">Residency State</span>
+                <span className="font-medium text-ink">{profile.state}</span>
               </div>
-              <div className="flex justify-between border-b border-white/5 pb-1">
-                <span className="text-slate-500">Occupation</span>
-                <span className="font-medium text-white">{profile.occupation}</span>
+              <div className="flex justify-between border-b border-line pb-1">
+                <span className="text-ink-mute">Occupation</span>
+                <span className="font-medium text-ink">{profile.occupation}</span>
               </div>
-              <div className="flex justify-between border-b border-white/5 pb-1">
-                <span className="text-slate-500">Annual Income</span>
-                <span className="font-medium text-white">{profile.income ? `₹${profile.income.toLocaleString()}` : '—'}</span>
+              <div className="flex justify-between border-b border-line pb-1">
+                <span className="text-ink-mute">Annual Income</span>
+                <span className="font-medium text-ink">{profile.income ? `₹${profile.income.toLocaleString()}` : '—'}</span>
               </div>
               <div className="flex justify-between pt-1">
-                <span className="text-slate-500">Startup Founder</span>
-                <span className="font-medium text-indigo-400">{profile.startup_status ? 'Yes' : 'No'}</span>
+                <span className="text-ink-mute">Startup Founder</span>
+                <span className="font-medium text-chakra">{profile.startup_status ? 'Yes' : 'No'}</span>
               </div>
               <div className="pt-2">
                 <button
                   onClick={() => router.push('/profile')}
-                  className="cursor-pointer w-full py-1.5 rounded-lg border border-white/10 hover:bg-white/5 text-[10px] font-bold text-center text-slate-300 transition-colors"
+                  className="cursor-pointer w-full py-1.5 rounded-lg border border-line hover:bg-mist text-xs font-bold text-center text-ink-soft transition-colors"
                 >
                   Edit Profile Fields
                 </button>
               </div>
             </div>
           ) : (
-            <p className="text-[10px] text-slate-500">Loading profile...</p>
+            <p className="text-xs text-ink-mute">Loading profile...</p>
           )}
         </div>
 
         {/* Recent Searches */}
         <div className="flex-1 flex flex-col space-y-3">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Recent Inquiries</h3>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-ink-mute">Recent Inquiries</h3>
           {recentQueries.length > 0 ? (
             <div className="space-y-2 overflow-y-auto max-h-[200px]">
               {recentQueries.map((q, idx) => (
                 <button
                   key={idx}
                   onClick={() => handleSendMessage(undefined, q)}
-                  className="w-full text-left truncate text-xs text-slate-400 hover:text-indigo-400 hover:bg-white/5 p-2 rounded-xl transition-all border border-transparent hover:border-white/5"
+                  className="w-full text-left truncate text-xs text-ink-mute hover:text-chakra-dark hover:bg-mist p-2 rounded-xl transition-all border border-transparent hover:border-ink-mute"
                 >
                   {q}
                 </button>
               ))}
             </div>
           ) : (
-            <p className="text-[10px] text-slate-500">Your recent searches will appear here.</p>
+            <p className="text-xs text-ink-mute">Your recent searches will appear here.</p>
           )}
         </div>
       </div>
 
       {/* 2. Main Chat Panel */}
-      <div className="lg:col-span-3 flex flex-col h-full bg-slate-900/10 border border-white/5 rounded-2xl overflow-hidden glass-panel">
+      <div className="lg:col-span-3 flex flex-col h-full bg-paper border border-line rounded-2xl overflow-hidden glass-panel">
         {/* Top bar controls */}
-        <div className="h-14 border-b border-white/5 px-6 flex items-center justify-between bg-slate-950/20">
+        <div className="h-14 border-b border-line px-6 flex items-center justify-between bg-paper">
           <div className="flex items-center space-x-2">
-            <span className="text-sm font-bold text-white flex items-center space-x-1.5">
+            <span className="text-sm font-bold text-ink flex items-center space-x-1.5">
               <span>Policy Assistant Chat</span>
-              <Sparkles className="h-3.5 w-3.5 text-indigo-400 animate-pulse" />
+              <Sparkles className="h-3.5 w-3.5 text-chakra animate-pulse" />
             </span>
           </div>
 
           <div className="flex items-center space-x-3">
-            <Globe className="h-4 w-4 text-slate-400" />
+            <Globe className="h-4 w-4 text-ink-mute" />
             <select
               value={lang}
               onChange={handleLanguageChange}
-              className="bg-slate-900 border border-white/10 text-xs font-medium rounded-lg px-2 py-1 text-slate-300 focus:outline-none focus:border-indigo-500 cursor-pointer"
+              className="bg-paper border border-line text-xs font-medium rounded-lg px-2 py-1 text-ink-soft focus:outline-none focus:border-chakra cursor-pointer"
             >
               <option value="en">English</option>
               <option value="hi">Hindi (हिन्दी)</option>
@@ -232,19 +234,19 @@ export default function ChatPage() {
         <div className="flex-1 p-6 overflow-y-auto space-y-6">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center space-y-4 max-w-md mx-auto">
-              <div className="p-4 bg-indigo-500/10 rounded-full text-indigo-400">
+              <div className="p-4 bg-chakra/10 rounded-full text-chakra">
                 <MessageSquare className="h-10 w-10" />
               </div>
-              <h2 className="text-lg font-bold text-white">Ask PolicyGPT</h2>
-              <p className="text-xs text-slate-400 leading-relaxed">
+              <h2 className="text-lg font-bold text-ink">Ask PolicyGPT</h2>
+              <p className="text-xs text-ink-mute leading-relaxed">
                 Describe your demographics (e.g., age, gender, occupation, location) and interests. For example:
               </p>
               <button
                 onClick={() => handleSendMessage(undefined, "I am a 22-year-old female engineering graduate from Karnataka interested in starting a business.")}
-                className="cursor-pointer text-xs text-left p-3 rounded-xl border border-white/10 bg-slate-900/50 hover:bg-slate-900 hover:border-indigo-500/50 transition-all text-slate-300 w-full flex items-center justify-between group"
+                className="cursor-pointer text-xs text-left p-3 rounded-xl border border-line bg-paper hover:bg-mist hover:border-chakra/50 transition-all text-ink-soft w-full flex items-center justify-between group"
               >
                 <span>"I am a 22-year-old female engineering graduate from Karnataka interested in starting a business."</span>
-                <ArrowRight className="h-4 w-4 text-slate-500 group-hover:text-indigo-400 group-hover:translate-x-0.5 transition-all" />
+                <ArrowRight className="h-4 w-4 text-ink-mute group-hover:text-chakra group-hover:translate-x-0.5 transition-all" />
               </button>
             </div>
           ) : (
@@ -256,34 +258,38 @@ export default function ChatPage() {
                 <div
                   className={`max-w-[85%] rounded-2xl p-4 space-y-3 text-sm leading-relaxed ${
                     m.role === 'user'
-                      ? 'bg-indigo-600 text-white rounded-br-none shadow-md'
-                      : 'bg-slate-950/60 border border-white/10 text-slate-200 rounded-bl-none'
+                      ? 'bg-chakra text-white rounded-br-none shadow-lg shadow-chakra/20'
+                      : 'bg-paper border border-line text-ink rounded-bl-none'
                   }`}
                 >
                   {/* Markdown content */}
-                  <div className="whitespace-pre-line text-xs sm:text-sm">{m.content}</div>
+                  {m.role === 'assistant' ? (
+                    <div className="text-sm"><Markdown content={m.content} /></div>
+                  ) : (
+                    <div className="whitespace-pre-line text-sm">{m.content}</div>
+                  )}
 
                   {m.role === 'assistant' && (
-                    <div className="border-t border-white/5 pt-3 space-y-3">
+                    <div className="border-t border-line pt-3 space-y-3">
                       {/* Grounded confidence score indicator */}
                       {m.confidence_score !== undefined && renderConfidence(m.confidence_score)}
 
                       {/* Source attribution citation cards */}
                       {m.citations && m.citations.length > 0 && (
                         <div className="space-y-1.5">
-                          <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Source Schemes Cited:</span>
+                          <span className="text-xs uppercase font-bold text-ink-mute tracking-wider">Source Schemes Cited:</span>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {m.citations.map((c, cIdx) => (
                               <div
                                 key={cIdx}
-                                className="p-2.5 rounded-lg border border-white/5 bg-slate-900/50 hover:border-indigo-500/30 transition-colors flex flex-col text-left space-y-1"
+                                className="p-2.5 rounded-lg border border-line bg-paper hover:border-chakra/30 transition-colors flex flex-col text-left space-y-1"
                               >
-                                <span className="text-xs font-bold text-white line-clamp-1">{c.scheme_title}</span>
-                                <span className="text-[9px] text-slate-500">{c.state} | {c.category}</span>
-                                <div className="flex space-x-2 pt-1 border-t border-white/5 mt-1">
+                                <span className="text-xs font-bold text-ink line-clamp-1">{c.scheme_title}</span>
+                                <span className="text-xs text-ink-mute">{c.state} | {c.category}</span>
+                                <div className="flex space-x-2 pt-1 border-t border-line mt-1">
                                   <button
                                     onClick={() => router.push(`/explorer?id=${c.scheme_id}`)}
-                                    className="cursor-pointer text-[9px] font-bold text-sky-400 hover:text-sky-300 flex items-center space-x-0.5"
+                                    className="cursor-pointer text-xs font-bold text-sky-700 hover:text-sky-700 flex items-center space-x-0.5"
                                   >
                                     <span>Explorer Details</span>
                                   </button>
@@ -292,13 +298,13 @@ export default function ChatPage() {
                                       try {
                                         const token = await getToken();
                                         const api = getApi(token);
-                                        const startRes = await api.post(`/api/dashboard/applications/${c.scheme_id}/start`);
+                                        await api.post(`/api/dashboard/applications/${c.scheme_id}/start`);
                                         router.push('/dashboard');
                                       } catch (err) {
                                         console.error('Failed to start application:', err);
                                       }
                                     }}
-                                    className="cursor-pointer text-[9px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center space-x-0.5 ml-auto"
+                                    className="cursor-pointer text-xs font-bold text-chakra hover:text-chakra-dark flex items-center space-x-0.5 ml-auto"
                                   >
                                     <span>Apply Scheme</span>
                                   </button>
@@ -318,8 +324,8 @@ export default function ChatPage() {
           {/* Loader */}
           {loading && (
             <div className="flex justify-start">
-              <div className="bg-slate-950/60 border border-white/10 rounded-2xl rounded-bl-none p-4 flex items-center space-x-3 text-slate-400">
-                <Loader className="h-4 w-4 animate-spin text-indigo-400" />
+              <div className="bg-paper border border-line rounded-2xl rounded-bl-none p-4 flex items-center space-x-3 text-ink-mute">
+                <Loader className="h-4 w-4 animate-spin text-chakra" />
                 <span className="text-xs">PolicyGPT is indexing guidelines and matching demographics...</span>
               </div>
             </div>
@@ -328,19 +334,19 @@ export default function ChatPage() {
         </div>
 
         {/* Input box form */}
-        <form onSubmit={handleSendMessage} className="p-4 border-t border-white/5 bg-slate-950/20 flex items-center space-x-3">
+        <form onSubmit={handleSendMessage} className="p-4 border-t border-line bg-paper flex items-center space-x-3">
           <input
             type="text"
             value={inputMsg}
             onChange={(e) => setInputMsg(e.target.value)}
             disabled={loading}
             placeholder="Ask about startup grants, farming subsidies, scholarship programs..."
-            className="flex-1 bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-xs sm:text-sm focus:outline-none focus:border-indigo-500 transition-colors"
+            className="flex-1 bg-paper border border-line rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-chakra transition-colors"
           />
           <button
             type="submit"
             disabled={loading || !inputMsg.trim()}
-            className="cursor-pointer p-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:hover:bg-indigo-600 text-white shadow transition-all duration-200"
+            className="cursor-pointer p-3 rounded-xl bg-chakra hover:bg-chakra-dark disabled:opacity-50 disabled:hover:bg-chakra-dark text-white shadow transition-all duration-200"
           >
             <Send className="h-4 w-4" />
           </button>

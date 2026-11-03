@@ -8,6 +8,7 @@ from app.models.application import Application
 from app.models.survey import Survey
 from app.models.analytics import AnalyticsEvent
 from app.services.ai_service import ai_service
+from app.utils.extra_schemes import ensure_extra_schemes
 import random
 from datetime import datetime
 
@@ -65,7 +66,13 @@ def seed_database():
     # 2. Check if already seeded
     if db.query(Scheme).first():
         logger.info("Database already contains seeded schemes. Skipping SQL seed.")
-        db.close()
+        try:
+            ensure_extra_schemes(db)
+        except Exception as e:
+            logger.error(f"Could not add extra schemes: {e}")
+            db.rollback()
+        finally:
+            db.close()
         return
 
     logger.info("Beginning data seeding...")
@@ -277,6 +284,7 @@ def seed_database():
                 ai_service.index_scheme_text(str(sch_db.id), str(sch_db.name), text)
                 
         logger.info("Successfully indexed guidelines in ChromaDB!")
+        ensure_extra_schemes(db)
     except Exception as e:
         logger.error(f"Error seeding data: {e}")
         db.rollback()

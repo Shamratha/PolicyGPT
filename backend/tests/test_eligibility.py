@@ -86,3 +86,25 @@ def test_check_eligibility_hybrid(db_session):
     result = eligibility_service.check_eligibility(db_session, profile_failed, scheme)
     assert result.status == "Not Eligible"
     assert "State" in result.reason
+
+
+def test_occupation_and_in_rules():
+    farmer_rule = EligibilityRule(field_name="occupation", operator="==", expected_value="farmer")
+    assert eligibility_service.evaluate_rule(farmer_rule, Profile(occupation="Farmer"))[0] is True
+    assert eligibility_service.evaluate_rule(farmer_rule, Profile(occupation="Student"))[0] is False
+
+    in_rule = EligibilityRule(field_name="state", operator="in", expected_value="karnataka, kerala")
+    assert eligibility_service.evaluate_rule(in_rule, Profile(state="Kerala"))[0] is True
+    assert eligibility_service.evaluate_rule(in_rule, Profile(state="Bihar"))[0] is False
+
+
+def test_missing_profile_is_potentially_eligible(db_session):
+    scheme = Scheme(name="s2", title="S2", description="desc", state="Central")
+    db_session.add(scheme)
+    db_session.flush()
+    db_session.add(EligibilityRule(scheme_id=scheme.id, field_name="age", operator=">=", expected_value="18"))
+    db_session.commit()
+    db_session.refresh(scheme)
+    result = eligibility_service.check_eligibility(db_session, None, scheme)
+    assert result.status == "Potentially Eligible"
+    assert "age" in result.reason

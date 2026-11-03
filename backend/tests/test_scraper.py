@@ -73,7 +73,7 @@ def test_scrape_and_index_pipeline(mock_index, mock_get, db_session):
     with patch("httpx.Client") as mock_client_class:
         mock_client_class.return_value.__enter__.return_value = mock_client
         
-        # Trigger scraping pipeline (uses mock OpenAI key bypass which returns a mock Rajiv Gandhi program JSON)
+        # Trigger scraping pipeline (offline mode extracts the record from the page with heuristics)
         scheme = scraper_service.scrape_and_index_scheme(
             url="https://eitbt.karnataka.gov.in/startup/rajiv-gandhi",
             db=db_session
@@ -81,14 +81,14 @@ def test_scrape_and_index_pipeline(mock_index, mock_get, db_session):
         
         # Verify database record creation
         assert scheme is not None
-        assert str(scheme.name) == "scraped_rajiv_gandhi"
+        assert str(scheme.name) == "rajiv_gandhi_entrepreneurship_program"
         assert str(scheme.title) == "Rajiv Gandhi Entrepreneurship Program"
         assert bool(scheme.is_for_startups) is True
         assert str(scheme.state) == "Karnataka"
         
         # Verify eligibility rules creation
         rules = db_session.query(EligibilityRule).filter(EligibilityRule.scheme_id == str(scheme.id)).all()
-        assert len(rules) == 4
+        assert {(r.field_name, r.expected_value) for r in rules} == {("state", "karnataka"), ("startup_status", "true")}
         state_rule = next(r for r in rules if r.field_name == "state")
         assert state_rule.operator == "=="
         assert state_rule.expected_value == "karnataka"
@@ -97,5 +97,5 @@ def test_scrape_and_index_pipeline(mock_index, mock_get, db_session):
         mock_index.assert_called_once()
         called_args = mock_index.call_args[0]
         assert called_args[0] == str(scheme.id)
-        assert called_args[1] == "scraped_rajiv_gandhi"
+        assert called_args[1] == "rajiv_gandhi_entrepreneurship_program"
         assert "Karnataka" in called_args[2]

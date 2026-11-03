@@ -1,6 +1,5 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any
 from app.database import get_db
@@ -9,7 +8,7 @@ from app.repositories.user_repo import user_repository
 from app.repositories.profile_repo import profile_repository
 from app.repositories.scheme_repo import scheme_repository
 from app.repositories.application_repo import application_repository
-from app.schemas.scheme import SchemeResponse, SavedSchemeResponse, SearchHistoryResponse, EligibilityCheckResponse
+from app.schemas.scheme import ApplicationResponse, UpdateApplicationRequest
 from app.services.eligibility_service import eligibility_service
 from app.models.application import Application
 
@@ -17,7 +16,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
-@router.get("/")
+@router.get("")
+@router.get("/", include_in_schema=False)
 def get_user_dashboard_summary(
     db: Session = Depends(get_db), 
     claims: dict = Depends(get_current_user_claims)
@@ -131,7 +131,7 @@ def unsave_scheme(
     success = scheme_repository.unsave_scheme(db, str(user.id), scheme_id)
     return {"status": "unsaved" if success else "not_saved"}
 
-@router.post("/applications/{scheme_id}/start")
+@router.post("/applications/{scheme_id}/start", response_model=ApplicationResponse)
 def start_application(
     scheme_id: str, 
     db: Session = Depends(get_db), 
@@ -147,7 +147,6 @@ def start_application(
     if not user:
         raise HTTPException(status_code=404, detail="User not synced.")
 
-    profile = profile_repository.get_by_user_id(db, str(user.id))
     scheme = scheme_repository.get(db, scheme_id)
     if not scheme:
         raise HTTPException(status_code=404, detail="Scheme not found.")
@@ -156,6 +155,10 @@ def start_application(
     existing = application_repository.get_by_user_and_scheme(db, str(user.id), scheme_id)
     if existing:
         return existing
+
+    profile = profile_repository.get_by_user_id(db, str(user.id))
+    if not profile:
+        profile = profile_repository.create(db, {"user_id": str(user.id)})
 
     # Generate document checklist using eligibility engine
     eval_res = eligibility_service.check_eligibility(db, profile, scheme)
@@ -176,11 +179,7 @@ def start_application(
     db.refresh(app)
     return app
 
-class UpdateApplicationRequest(BaseModel):
-    checklist: Dict[str, bool]
-    status: str
-
-@router.post("/applications/{app_id}/update")
+@router.post("/applications/{app_id}/update", response_model=ApplicationResponse)
 def update_application(
     app_id: str,
     payload: UpdateApplicationRequest,

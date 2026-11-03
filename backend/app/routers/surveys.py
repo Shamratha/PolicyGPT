@@ -7,6 +7,7 @@ from app.database import get_db
 from app.utils.auth_utils import get_current_user_claims
 from app.repositories.user_repo import user_repository
 from app.repositories.survey_repo import survey_repository
+from app.repositories.scheme_repo import scheme_repository
 from app.schemas.survey import SurveyCreate, SurveyResponse, SurveyStatsResponse
 from app.services.report_service import report_service
 
@@ -29,6 +30,9 @@ def submit_research_survey(
     user = user_repository.get_by_clerk_id(db, clerk_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not synced.")
+
+    if payload.scheme_id and not scheme_repository.get(db, payload.scheme_id):
+        raise HTTPException(status_code=404, detail="Scheme not found. Please pick a scheme from the list.")
 
     survey_data = payload.model_dump()
     survey_data["user_id"] = user.id

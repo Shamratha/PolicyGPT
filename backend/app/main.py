@@ -1,5 +1,6 @@
 import logging
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import engine, Base
@@ -34,7 +35,7 @@ try:
     from app.utils.seed_data import seed_database
     seed_database()
 except Exception as e:
-    logger.error(f"Failed to synchronize or seed database on launch: {e}")
+    logger.exception(f"Failed to synchronize or seed database on launch: {e}")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -43,10 +44,21 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
+@app.exception_handler(Exception)
+async def unhandled_error(request: Request, exc: Exception):
+    """Safety net: log the real error, return a clean JSON message, keep the server running."""
+    logger.exception(f"Unhandled error on {request.method} {request.url.path}: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Something went wrong on the server. Please try again."},
+    )
+
+
 # Setup CORS for frontend interactions
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Allow development ports, adjust for production domains
+    allow_origins=settings.cors_origin_list,
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -66,8 +78,20 @@ def read_root():
     return {
         "status": "online",
         "service": "PolicyGPT API",
-        "environment": settings.ENVIRONMENT
+        "environment": settings.ENVIRONMENT,
+        "ai_mode": "offline" if settings.ai_offline else "openai",
+        "docs": "/docs",
     }
+
+
+@app.get("/health")
+def health():
+    from sqlalchemy import text
+    from app.database import SessionLocal
+    with SessionLocal() as db:
+        db.execute(text("SELECT 1"))
+        schemes = db.query(Scheme).count()
+    return {"status": "ok", "database": "ok", "schemes": schemes}
 
 if __name__ == "__main__":
     import uvicorn

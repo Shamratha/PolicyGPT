@@ -1,4 +1,6 @@
+import html
 import json
+import re
 import logging
 import uuid
 import httpx
@@ -54,7 +56,7 @@ def extract_text_from_html(html_content: str) -> str:
 
 class ScraperService:
     def __init__(self):
-        self.openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        self.openai_client = OpenAI(api_key=settings.OPENAI_API_KEY or "sk-mock")
 
     def scrape_and_index_scheme(self, url: str, db: Session) -> Scheme:
         """
@@ -120,30 +122,9 @@ class ScraperService:
         result_json: Dict[str, Any] = {}
         try:
             # Development fallback check
-            if settings.OPENAI_API_KEY.startswith("sk-mock"):
-                # Return standard mocked result for testing/offline mode
-                result_json = {
-                    "name": "scraped_rajiv_gandhi",
-                    "title": "Rajiv Gandhi Entrepreneurship Program",
-                    "description": "Program to assist young tech entrepreneurs in Karnataka.",
-                    "benefits": "Rs. 25,000 monthly stipend for 12 months.",
-                    "eligibility_criteria": "Karnataka resident, age 18-35, startup status true.",
-                    "required_documents": "Aadhaar, Domicile, Project Proposal",
-                    "application_steps": "1. Apply on website. 2. Pitch to committee.",
-                    "state": "Karnataka",
-                    "category": "Business",
-                    "ministry": "K-Tech, Govt of Karnataka",
-                    "is_for_women": False,
-                    "is_for_students": False,
-                    "is_for_startups": True,
-                    "is_for_farmers": False,
-                    "rules": [
-                        {"field_name": "state", "operator": "==", "expected_value": "karnataka"},
-                        {"field_name": "age", "operator": ">=", "expected_value": "18"},
-                        {"field_name": "age", "operator": "<=", "expected_value": "35"},
-                        {"field_name": "startup_status", "operator": "==", "expected_value": "true"}
-                    ]
-                }
+            if settings.ai_offline:
+                # Offline mode: derive the scheme record from the page itself with heuristics
+                result_json = heuristic_extract(html_content, cleaned_text)
             else:
                 response = self.openai_client.chat.completions.create(
                     model="gpt-4o",
@@ -228,5 +209,81 @@ class ScraperService:
             logger.error(f"Failed to vector index scraped scheme {scheme.title} in ChromaDB: {e}")
 
         return scheme
+
+_INDIAN_STATES = [
+    "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana",
+    "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur",
+    "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana",
+    "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Delhi", "Jammu and Kashmir", "Ladakh", "Puducherry",
+]
+_CATEGORY_KEYWORDS = {
+    "Business": ["startup", "entrepreneur", "enterprise", "msme", "business", "loan", "incubat"],
+    "Education": ["scholarship", "student", "education", "college", "school", "fellowship"],
+    "Agriculture": ["farmer", "agricultur", "crop", "kisan", "irrigation"],
+    "Healthcare": ["health", "hospital", "medical", "insurance", "treatment"],
+    "Housing": ["housing", "house", "awas", "shelter"],
+    "Employment": ["employment", "skill", "training", "job"],
+}
+
+
+def heuristic_extract(html_content: str, cleaned_text: str) -> Dict[str, Any]:
+    """Build a scheme record from a scraped page without an LLM."""
+    title = None
+    for pattern in (r"<h1[^>]*>(.*?)</h1>", r"<title[^>]*>(.*?)</title>"):
+        m = re.search(pattern, html_content, re.IGNORECASE | re.DOTALL)
+        if m:
+            candidate = re.sub(r"<[^>]+>", " ", m.group(1))
+            candidate = re.sub(r"\s+", " ", html.unescape(candidate)).strip()
+            if candidate:
+                title = candidate[:200]
+                break
+    text = re.sub(r"\s+", " ", cleaned_text).strip()
+    if not title:
+        title = text[:80] or "Scraped Scheme"
+    body = text.replace(title, "", 1).strip() or text
+    lower = text.lower()
+
+    state = next((st for st in _INDIAN_STATES if st.lower() in lower), "Central")
+    scores = {cat: sum(lower.count(k) for k in kws) for cat, kws in _CATEGORY_KEYWORDS.items()}
+    category = max(scores, key=lambda c: scores[c]) if any(scores.values()) else "General"
+
+    is_for_startups = any(k in lower for k in _CATEGORY_KEYWORDS["Business"][:4])
+    is_for_students = any(k in lower for k in ("student", "scholarship", "fellowship"))
+    is_for_farmers = any(k in lower for k in ("farmer", "kisan", "agricultur"))
+    is_for_women = any(k in lower for k in ("women", "woman", "female", "mahila", "girl"))
+
+    rules: List[Dict[str, str]] = []
+    if state != "Central":
+        rules.append({"field_name": "state", "operator": "==", "expected_value": state.lower()})
+    age = re.search(r"(?:age|aged)[^0-9]{0,25}(\d{2})\s*(?:-|to|and)\s*(\d{2})", lower)
+    if age:
+        rules.append({"field_name": "age", "operator": ">=", "expected_value": age.group(1)})
+        rules.append({"field_name": "age", "operator": "<=", "expected_value": age.group(2)})
+    if is_for_startups:
+        rules.append({"field_name": "startup_status", "operator": "==", "expected_value": "true"})
+    if is_for_students:
+        rules.append({"field_name": "student_status", "operator": "==", "expected_value": "true"})
+    if is_for_women and not any(k in lower for k in (" men ", "male")):
+        rules.append({"field_name": "gender", "operator": "==", "expected_value": "female"})
+
+    slug = re.sub(r"[^a-z0-9]+", "_", title.lower()).strip("_")[:60] or "scraped_scheme"
+    return {
+        "name": slug,
+        "title": title,
+        "description": body[:1500],
+        "benefits": None,
+        "eligibility_criteria": None,
+        "required_documents": None,
+        "application_steps": None,
+        "state": state,
+        "category": category,
+        "ministry": None,
+        "is_for_women": is_for_women,
+        "is_for_students": is_for_students,
+        "is_for_startups": is_for_startups,
+        "is_for_farmers": is_for_farmers,
+        "rules": rules,
+    }
+
 
 scraper_service = ScraperService()

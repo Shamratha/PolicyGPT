@@ -1,7 +1,8 @@
 import logging
 import json
+import re
 from sqlalchemy.orm import Session
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Optional, Tuple
 from openai import OpenAI
 from app.config import settings
 from app.models.profile import Profile
@@ -10,9 +11,17 @@ from app.schemas.scheme import EligibilityCheckResponse
 
 logger = logging.getLogger(__name__)
 
+
+def _split_items(text: Optional[str]) -> List[str]:
+    """Turn 'A, B, C' or '1. Do x. 2. Do y.' into a clean list."""
+    if not text:
+        return []
+    parts = re.split(r"(?:\s*\d+\.\s+)|[;,\n]", str(text))
+    return [p.strip(" .") for p in parts if p and p.strip(" .")]
+
 class EligibilityService:
     def __init__(self):
-        self.openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        self.openai_client = OpenAI(api_key=settings.OPENAI_API_KEY or "sk-mock")
 
     def evaluate_rule(self, rule: EligibilityRule, profile: Profile) -> Tuple[bool, str]:
         """
@@ -51,11 +60,11 @@ class EligibilityService:
                 elif operator == ">=":
                     return user_income >= exp_income, f"Family income {user_income} must be >= {exp_income}"
 
-            elif field == "gender":
+            elif field == "gender" and operator == "==":
                 # Case-insensitive string match
                 return val.lower() == expected.lower(), f"Gender '{val}' must be '{expected}'"
 
-            elif field == "state":
+            elif field == "state" and operator == "==":
                 # Case-insensitive string match
                 return val.lower() == expected.lower(), f"State '{val}' must be '{expected}'"
 
@@ -65,24 +74,39 @@ class EligibilityService:
                 exp_bool = expected.lower() in ["true", "1", "yes"]
                 return user_bool == exp_bool, f"Field '{field}' ({user_bool}) must be {exp_bool}"
 
+            # Generic text fields (occupation, education, ...) and any "in" rule
+            if isinstance(val, str):
+                user_val = val.strip().lower()
+                if operator == "in":
+                    options = [o.strip().lower() for o in expected.split(",") if o.strip()]
+                    return user_val in options, f"{field.replace('_', ' ').title()} '{val}' must be one of: {expected}"
+                if operator == "==":
+                    return user_val == expected.lower(), f"{field.replace('_', ' ').title()} '{val}' must be '{expected}'"
+                if operator == "!=":
+                    return user_val != expected.lower(), f"{field.replace('_', ' ').title()} '{val}' must not be '{expected}'"
+
             return True, "unknown_field_skipped"
         except Exception as e:
             logger.error(f"Error evaluating rule {rule.id}: {e}")
             return True, f"Error: {str(e)}"
 
-    def check_eligibility(self, db: Session, profile: Profile, scheme: Scheme) -> EligibilityCheckResponse:
+    def check_eligibility(self, db: Session, profile: Optional[Profile], scheme: Scheme) -> EligibilityCheckResponse:
         """
         Runs deterministic hard-coded checks followed by LLM contextualization.
         """
+        if profile is None:
+            profile = Profile()  # blank profile -> every rule is "missing info"
         # Phase 1: Check rules
         rules = scheme.rules
         failed_reasons = []
         has_missing_info = False
+        missing_fields: List[str] = []
 
         for rule in rules:
             passed, msg = self.evaluate_rule(rule, profile)
             if msg == "missing_info":
                 has_missing_info = True
+                missing_fields.append(str(rule.field_name).replace("_", " "))
             elif not passed:
                 failed_reasons.append(msg)
 
@@ -101,16 +125,21 @@ class EligibilityService:
 
         # Phase 2: LLM checks for complex terms (e.g. "engineering graduate interested in starting a business")
         # If the key is mock, return a standard result
-        if settings.OPENAI_API_KEY.startswith("sk-mock"):
-            status = "Potentially Eligible" if has_missing_info else "Eligible"
+        if settings.ai_offline:
+            status = "Potentially Eligible" if (has_missing_info or not rules) else "Eligible"
             return EligibilityCheckResponse(
                 scheme_id=str(scheme.id),
                 scheme_title=str(scheme.title),
                 status=status,
-                reason="Meets basic criteria based on simulated database check.",
+                reason=(
+                    "You meet all the rule-based criteria we could check, but some profile details are missing - "
+                    f"update {', '.join(missing_fields)} on your profile for a definitive result."
+                    if has_missing_info else
+                    "You meet all the rule-based eligibility criteria recorded for this scheme."
+                ) if rules else "This scheme's eligibility can't be checked automatically. Read the criteria below and confirm on the official portal.",
                 benefits=str(scheme.benefits) if scheme.benefits is not None else "",
-                required_documents=["Aadhaar Card", "Income Certificate"],
-                application_steps=["Visit portal", "Upload documents", "Submit"],
+                required_documents=_split_items(scheme.required_documents) or ["Aadhaar Card", "Income Certificate"],
+                application_steps=_split_items(scheme.application_steps) or ["Visit the official portal", "Upload documents", "Submit the application"],
                 next_opportunities=[]
             )
 

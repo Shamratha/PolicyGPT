@@ -1,14 +1,16 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from datetime import datetime, time
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Response
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.database import get_db
-from app.utils.auth_utils import get_current_user_claims
+from app.config import settings
+from app.utils.auth_utils import get_current_user_claims, require_admin
 from app.repositories.user_repo import user_repository
 from app.repositories.profile_repo import profile_repository
 from app.repositories.scheme_repo import scheme_repository
-from app.models.scheme import Scheme
-from app.schemas.scheme import SchemeResponse, EligibilityCheckResponse, ScrapeRequest
+from app.models.scheme import Scheme, EligibilityRule
+from app.schemas.scheme import SchemeResponse, EligibilityCheckResponse, ScrapeRequest, SchemeCreateRequest
 from app.services.eligibility_service import eligibility_service
 from app.services.ai_service import ai_service
 from app.services.scraper_service import scraper_service
@@ -17,7 +19,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/schemes", tags=["Schemes"])
 
-@router.get("/", response_model=List[SchemeResponse])
+@router.get("", response_model=List[SchemeResponse])
+@router.get("/", response_model=List[SchemeResponse], include_in_schema=False)
 def get_all_schemes(
     state: Optional[str] = None,
     category: Optional[str] = None,
@@ -44,6 +47,69 @@ def get_all_schemes(
     if farmers:
         query = query.filter(Scheme.is_for_farmers == True)
     return query.all()
+
+@router.post("", response_model=SchemeResponse, status_code=201)
+@router.post("/", response_model=SchemeResponse, status_code=201, include_in_schema=False)
+def create_scheme(
+    payload: SchemeCreateRequest,
+    db: Session = Depends(get_db),
+    claims: dict = Depends(require_admin),
+):
+    """
+    Add a new scheme or scholarship with optional rule-based eligibility criteria.
+    The scheme is immediately searchable in the explorer, the AI assistant and eligibility checks.
+    """
+    if scheme_repository.get_by_name(db, str(payload.name)):
+        raise HTTPException(status_code=409, detail=f"A scheme with the id '{payload.name}' already exists. Choose a different title or id.")
+
+    data = payload.model_dump(exclude={"rules"})
+    if payload.deadline:
+        data["deadline"] = datetime.combine(payload.deadline, time(23, 59))
+    scheme = Scheme(**data)
+    try:
+        db.add(scheme)
+        db.flush()
+        for rule in payload.rules:
+            db.add(EligibilityRule(scheme_id=scheme.id, **rule.model_dump()))
+        db.commit()
+        db.refresh(scheme)
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to create scheme: {e}")
+        raise HTTPException(status_code=500, detail="Could not save the scheme.")
+
+    try:
+        text = "\n".join(
+            f"{label}: {value}" for label, value in (
+                ("Title", scheme.title), ("Description", scheme.description), ("Benefits", scheme.benefits),
+                ("Eligibility", scheme.eligibility_criteria), ("Documents", scheme.required_documents),
+                ("How to apply", scheme.application_steps), ("State", scheme.state), ("Ministry", scheme.ministry),
+            ) if value
+        )
+        ai_service.index_scheme_text(str(scheme.id), str(scheme.name), text)
+    except Exception as e:  # search index is best-effort; the SQL record is the source of truth
+        logger.warning(f"Scheme {scheme.name} saved but not indexed for AI search: {e}")
+
+    logger.info(f"Scheme created by {claims.get('sub')}: {scheme.name}")
+    return scheme
+
+
+@router.delete("/{scheme_id}", status_code=204)
+def delete_scheme(scheme_id: str, db: Session = Depends(get_db), claims: dict = Depends(require_admin)):
+    """Remove a scheme (and its rules, saved bookmarks and applications)."""
+    scheme = scheme_repository.get(db, scheme_id)
+    if not scheme:
+        raise HTTPException(status_code=404, detail="Scheme not found.")
+    db.delete(scheme)
+    db.commit()
+    try:
+        if not settings.ai_offline:
+            ai_service.collection.delete(where={"scheme_id": scheme_id})
+    except Exception as e:
+        logger.warning(f"Could not remove scheme {scheme_id} from the search index: {e}")
+    logger.info(f"Scheme {scheme_id} deleted by {claims.get('sub')}")
+    return Response(status_code=204)
+
 
 @router.get("/{scheme_id}", response_model=SchemeResponse)
 def get_scheme_by_id(scheme_id: str, db: Session = Depends(get_db)):
@@ -99,7 +165,8 @@ def evaluate_user_eligibility(
 def upload_policy_document(
     scheme_id: str = Form(...),
     file: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    claims: dict = Depends(require_admin),
 ):
     """
     Admin endpoint to upload guidelines PDF and index in ChromaDB.
@@ -108,15 +175,18 @@ def upload_policy_document(
     if not scheme:
         raise HTTPException(status_code=404, detail="Scheme not found in SQL database.")
 
-    if not file.filename or not file.filename.endswith(".pdf"):
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF uploads are accepted.")
 
     try:
-        # Extract text from uploaded PDF
         text = ai_service.extract_text_from_pdf(file.file)
-        if not text.strip():
-            raise HTTPException(status_code=400, detail="Could not extract any text from PDF.")
+    except Exception as e:
+        logger.warning(f"Unreadable PDF upload {file.filename}: {e}")
+        raise HTTPException(status_code=400, detail="The uploaded file is not a readable PDF.")
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="Could not extract any text from PDF.")
 
+    try:
         # Chunk, embed, and store in ChromaDB
         ai_service.index_scheme_text(scheme_id, str(scheme.name), text)
         return {"status": "success", "message": f"Successfully indexed guidelines for {scheme.title}."}
@@ -128,7 +198,7 @@ def upload_policy_document(
 def scrape_official_scheme(
     payload: ScrapeRequest,
     db: Session = Depends(get_db),
-    claims: dict = Depends(get_current_user_claims)
+    claims: dict = Depends(require_admin)
 ):
     """
     Scrape an official government scheme guidelines webpage and register/index it.
@@ -139,7 +209,7 @@ def scrape_official_scheme(
         raise HTTPException(status_code=401, detail="Invalid token claims: sub missing.")
         
     try:
-        scheme = scraper_service.scrape_and_index_scheme(payload.url, db)
+        scheme = scraper_service.scrape_and_index_scheme(str(payload.url), db)
         return scheme
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

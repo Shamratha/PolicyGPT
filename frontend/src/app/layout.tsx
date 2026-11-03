@@ -5,7 +5,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
 export const metadata: Metadata = {
-  title: 'PolicyGPT - AI-Powered Public Policy Navigation',
+  title: 'PolicyGPT - Find government schemes you qualify for',
   description: 'Discover, match, and navigate government welfare schemes, startup grants, and scholarships with AI.',
 };
 
@@ -19,9 +19,9 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Noto+Sans+Devanagari:wght@400;700&family=Noto+Sans+Kannada:wght@400;700&display=swap" rel="stylesheet" />
       </head>
-      <body className="h-full flex flex-col glowing-bg text-slate-100 antialiased min-h-screen">
+      <body className="h-full flex flex-col bg-paper text-ink antialiased min-h-screen">
         <ClerkProvider>
           <Navbar />
           <main className="flex-1 flex flex-col container mx-auto px-4 py-8 max-w-7xl">

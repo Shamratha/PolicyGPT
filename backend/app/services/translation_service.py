@@ -8,7 +8,7 @@ class TranslationService:
     def __init__(self):
         # Gracefully handle mock keys during testing
         self.api_key = settings.OPENAI_API_KEY
-        self.client = OpenAI(api_key=self.api_key)
+        self.client = OpenAI(api_key=self.api_key or "sk-mock")
 
     def translate_to_english(self, text: str, source_lang: str) -> str:
         if not text or source_lang.lower() == "en":
@@ -25,7 +25,7 @@ class TranslationService:
 
         try:
             # Check if key is mock
-            if self.api_key.startswith("sk-mock"):
+            if settings.ai_offline:
                 return text # fallback to original text for mock/tests
             
             response = self.client.chat.completions.create(
@@ -55,7 +55,7 @@ class TranslationService:
         )
 
         try:
-            if self.api_key.startswith("sk-mock"):
+            if settings.ai_offline:
                 return text # fallback for mock/tests
                 
             response = self.client.chat.completions.create(
